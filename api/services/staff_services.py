@@ -103,3 +103,14 @@ def get_orders_by_status(db: Session, status: StatusType):
     Get orders filtered by status
     """
     return db.query(Order).filter(Order.status == status).all()
+
+
+def get_orders_by_date_range(db: Session, start_date: date, end_date: date):
+    """
+    Get orders within a date range
+    """
+    return db.query(Order).filter(
+        func.date(Order.order_date) >= start_date
+    ).filter(
+        func.date(Order.order_date) <= end_date
+    ).all()

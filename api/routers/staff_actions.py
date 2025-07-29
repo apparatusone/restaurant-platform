@@ -60,3 +60,11 @@ def get_orders_by_status(status: StatusType, db: Session = Depends(get_db)):
     Get orders filtered by status
     """
     return staff_services.get_orders_by_status(db=db, status=status)
+
+
+@router.get("/orders/date-range")
+def get_orders_by_date_range(start_date: date, end_date: date, db: Session = Depends(get_db)):
+    """
+    Get orders within a date range (YYYY-MM-DD)
+    """
+    return staff_services.get_orders_by_date_range(db=db, start_date=start_date, end_date=end_date)
