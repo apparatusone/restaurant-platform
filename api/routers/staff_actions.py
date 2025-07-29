@@ -40,3 +40,11 @@ def get_daily_revenue(target_date: date, db: Session = Depends(get_db)):
     Get total revenue for a specific date (YYYY-MM-DD format)
     """
     return staff_services.get_daily_revenue(db=db, target_date=target_date)
+
+
+@router.get("/reviews/{rating}")
+def review_feedback(rating: int, db: Session = Depends(get_db)):
+    """
+    Get a list of menu items based on their review rating, list reviews
+    """
+    return staff_services.review_feedback(db=db, rating=rating)

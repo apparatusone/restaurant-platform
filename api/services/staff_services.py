@@ -8,6 +8,8 @@ from api.models.resources import Resource
 from api.models import promotions as promotion_model
 from api.models.payments import Payment, PaymentStatus
 from api.models.orders import Order
+from api.models.reviews import Reviews
+from api.models.menu_items import MenuItem
 
 
 # this function gets and returns the ingredients needed for a particular menu item
@@ -87,3 +89,10 @@ def get_daily_revenue(db: Session, target_date: date):
         "total_revenue": round(float(total_revenue), 2) if total_revenue else 0.0,
         "completed_orders": completed_orders or 0
     }
+
+
+def review_feedback(db: Session, rating: int):
+    """
+    Get reviews filtered by rating
+    """
+    return db.query(Reviews).join(MenuItem).filter(Reviews.rating == rating).all()
