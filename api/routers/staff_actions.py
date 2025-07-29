@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, FastAPI, status, Response
 from sqlalchemy.orm import Session
+from datetime import date
 from ..services import staff_services
 from ..schemas import menu_items as schema
 from ..schemas import promotions as promotion_schema
@@ -31,3 +32,11 @@ def update_promotion_by_code(promo_code: str, request: promotion_schema.Promotio
 @router.delete("/promotions/code/{promo_code}")
 def delete_promotion_by_code(promo_code: str, db: Session = Depends(get_db)):
     return staff_services.delete_promotion_by_code(db=db, promo_code=promo_code)
+
+
+@router.get("/revenue/{target_date}")
+def get_daily_revenue(target_date: date, db: Session = Depends(get_db)):
+    """
+    Get total revenue for a specific date (YYYY-MM-DD format)
+    """
+    return staff_services.get_daily_revenue(db=db, target_date=target_date)

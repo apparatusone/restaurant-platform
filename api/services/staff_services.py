@@ -1,9 +1,13 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from fastapi import HTTPException, status, Response
 from sqlalchemy.exc import SQLAlchemyError
+from datetime import datetime, date
 from api.models.menu_item_ingredients import MenuItemIngredient
 from api.models.resources import Resource
 from api.models import promotions as promotion_model
+from api.models.payments import Payment, PaymentStatus
+from api.models.orders import Order
 
 
 # this function gets and returns the ingredients needed for a particular menu item
@@ -54,3 +58,32 @@ def delete_promotion_by_code(db: Session, promo_code: str):
         error = str(e.__dict__['orig'])
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def get_daily_revenue(db: Session, target_date: date):
+    """
+    Calculate total revenue for a specific date
+    """
+    # Get all of the completed payments for orders on the specified date
+    total_revenue = db.query(func.sum(Payment.amount)).join(
+        Order, Payment.order_id == Order.id
+    ).filter(
+        func.date(Order.order_date) == target_date
+    ).filter(
+        Payment.status == PaymentStatus.COMPLETED
+    ).scalar()
+    
+    # Get a count of the completed orders
+    completed_orders = db.query(func.count(Order.id)).join(
+        Payment, Order.id == Payment.order_id
+    ).filter(
+        func.date(Order.order_date) == target_date
+    ).filter(
+        Payment.status == PaymentStatus.COMPLETED
+    ).scalar()
+    
+    return {
+        "date": target_date.isoformat(),
+        "total_revenue": round(float(total_revenue), 2) if total_revenue else 0.0,
+        "completed_orders": completed_orders or 0
+    }

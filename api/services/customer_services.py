@@ -6,9 +6,6 @@ from ..models.resources import Resource
 
 
 def get_menu(db: Session):
-    """
-    Retrieve only available menu items based on resource availability
-    """
     all_menu_items = db.query(MenuItem).all()
     available_items = []
     
@@ -38,10 +35,6 @@ def get_menu(db: Session):
 
 
 def get_menu_item_by_name(db: Session, item_name: str):
-    """
-    Search for a particular menu item by name
-    """
-    # Find the menu item by name (case-insensitive)
     menu_item = db.query(MenuItem).filter(
         MenuItem.name.ilike(f"%{item_name}%")
     ).first()
