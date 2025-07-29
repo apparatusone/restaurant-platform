@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, FastAPI, status, Response
+from fastapi import APIRouter, Depends, FastAPI, status, Response, Path
 from sqlalchemy.orm import Session
 from datetime import date
 from ..services import staff_services
@@ -44,7 +44,10 @@ def get_daily_revenue(target_date: date, db: Session = Depends(get_db)):
 
 
 @router.get("/reviews/{rating}")
-def review_feedback(rating: int, db: Session = Depends(get_db)):
+def review_feedback(
+    rating: int = Path(..., ge=1, le=5, description="Rating value between 1 and 5"),
+    db: Session = Depends(get_db)
+):
     """
     Get a list of menu items based on their review rating, list reviews
     """
