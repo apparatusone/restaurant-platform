@@ -7,7 +7,7 @@ from api.models.menu_item_ingredients import MenuItemIngredient
 from api.models.resources import Resource
 from api.models import promotions as promotion_model
 from api.models.payments import Payment, PaymentStatus
-from api.models.orders import Order
+from api.models.orders import Order, StatusType
 from api.models.reviews import Reviews
 from api.models.menu_items import MenuItem
 
@@ -96,3 +96,10 @@ def review_feedback(db: Session, rating: int):
     Get reviews filtered by rating
     """
     return db.query(Reviews).join(MenuItem).filter(Reviews.rating == rating).all()
+
+
+def get_orders_by_status(db: Session, status: StatusType):
+    """
+    Get orders filtered by status
+    """
+    return db.query(Order).filter(Order.status == status).all()

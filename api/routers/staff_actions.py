@@ -5,6 +5,7 @@ from ..services import staff_services
 from ..schemas import menu_items as schema
 from ..schemas import promotions as promotion_schema
 from ..dependencies.database import engine, get_db
+from ..models.orders import StatusType
 
 # holds common actions made by the staff
 
@@ -48,3 +49,11 @@ def review_feedback(rating: int, db: Session = Depends(get_db)):
     Get a list of menu items based on their review rating, list reviews
     """
     return staff_services.review_feedback(db=db, rating=rating)
+
+
+@router.get("/orders/status/{status}")
+def get_orders_by_status(status: StatusType, db: Session = Depends(get_db)):
+    """
+    Get orders filtered by status
+    """
+    return staff_services.get_orders_by_status(db=db, status=status)
