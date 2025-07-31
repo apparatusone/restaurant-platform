@@ -21,7 +21,7 @@ class OrderDetail(OrderDetailBase):
     id: int
     order_id: int
     menu_item_id: int
-    menu_items: MenuItems = None
+    menu_item: MenuItems = None
 
     class ConfigDict:
         from_attributes = True
