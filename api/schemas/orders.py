@@ -22,7 +22,7 @@ class StatusType(str, Enum):
 
 
 class OrderBase(BaseModel):
-    customer_id: int
+    customer_id: Optional[int] = None
     description: Optional[str] = None
     status: StatusType = StatusType.PENDING
     order_type: OrderType = OrderType.DINE_IN
