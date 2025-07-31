@@ -23,7 +23,6 @@ class Payment(Base):
         id = Column(Integer, primary_key=True, index=True, autoincrement=True)
         order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
         payment_date = Column(DATETIME, nullable=False, default=str(datetime.now()))
-        amount = Column(Float, nullable=False)
         status = Column(Enum(PaymentStatus), nullable=False, default=PaymentStatus.PENDING)
         payment_type = Column(Enum(PaymentType), nullable=False)
 

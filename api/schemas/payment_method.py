@@ -16,7 +16,6 @@ class PaymentStatus(str, Enum):
 
 class PaymentBase(BaseModel):
     order_id: int
-    amount: float
     payment_type: PaymentType = None
     status: PaymentStatus = PaymentStatus.PENDING
 

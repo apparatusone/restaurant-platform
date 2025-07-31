@@ -50,15 +50,13 @@ def add_to_cart(menu_item_id: int, quantity: int,
 
 
 @router.post("/add-payment", response_model=payment_schema.Payment)
-def add_payment_method(order_id: int, amount: float, 
-                       payment_type: payment_schema.PaymentType,
+def add_payment_method(order_id: int, payment_type: payment_schema.PaymentType,
                        db: Session = Depends(get_db)):
     """
     Add payment to an order
     """
     payment_request = payment_schema.PaymentCreate(
         order_id=order_id,
-        amount=amount,
         payment_type=payment_type,
         status=payment_schema.PaymentStatus.COMPLETED
     )

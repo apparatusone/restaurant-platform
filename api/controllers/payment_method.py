@@ -3,6 +3,7 @@ from fastapi import HTTPException, status, Response, Depends
 from ..models import payment_method as model
 from ..models.orders import Order
 from sqlalchemy.exc import SQLAlchemyError
+from ..schemas.payment_method import PaymentType, PaymentStatus
 
 
 def create(db: Session, request):
@@ -14,10 +15,15 @@ def create(db: Session, request):
             detail=f"Order with id {request.order_id} not found"
         )
 
+    status = None
+    if request.payment_type == PaymentType.cash:
+        status = PaymentStatus.COMPLETED
+    else:
+        status = request.status
+
     new_item = model.Payment(
         payment_type=request.payment_type,
-        amount=request.amount,
-        status=request.status,
+        status=status,
         order_id=request.order_id,
     )
 
