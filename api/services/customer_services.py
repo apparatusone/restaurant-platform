@@ -7,9 +7,11 @@ from ..models.resources import Resource
 from ..schemas import orders as order_schema
 from ..schemas import order_details as order_detail_schema
 from ..schemas import payment_method as payment_schema
+from ..schemas import customers as customer_schema
 from ..controllers import orders as order_controller
 from ..controllers import order_details as order_detail_controller
 from ..controllers import payment_method as payment_controller
+from ..controllers import customers as customer_controller
 from ..schemas.payment_method import PaymentType
 
 
@@ -102,4 +104,53 @@ def add_payment_method(db: Session, order_id: int, payment_type: payment_schema.
     if payment_type != PaymentType.CASH and card_number is None:
         raise HTTPException(status_code=400, detail=f"Card number required for {payment_type} payments.")
 
+    # if customer enters a card number with cash, remove it
+    if payment_type != PaymentType.CASH:
+        payment_request.card_number = None
+
     return payment_controller.create(db=db, request=payment_request)
+
+
+def add_customer_information(db: Session, order_id: int, customer_name: str,
+                           customer_email: Optional[str] = None,
+                           customer_phone: Optional[int] = None,
+                           customer_address: Optional[str] = None):
+    """
+    Add customer information to an existing order
+    Finds existing customer by email or phone, or creates a new one
+    """
+    from ..models.customers import Customer
+    
+    existing_customer = None
+    
+    # If a customer exists with the provided email or phone number, don't create a new customer
+    if customer_email:
+        existing_customer = db.query(Customer).filter(Customer.customer_email == customer_email).first()
+    
+    if not existing_customer and customer_phone:
+        existing_customer = db.query(Customer).filter(Customer.customer_phone == customer_phone).first()
+    
+    if existing_customer:
+        # Update existing customer with new information
+        customer_update = customer_schema.CustomerUpdate(
+            customer_name=customer_name,
+            customer_email=customer_email,
+            customer_phone=customer_phone,
+            customer_address=customer_address
+        )
+        customer = customer_controller.update(db=db, request=customer_update, item_id=existing_customer.id)
+    else:
+        # Create new customer
+        customer_request = customer_schema.CustomerCreate(
+            customer_name=customer_name,
+            customer_email=customer_email,
+            customer_phone=customer_phone,
+            customer_address=customer_address
+        )
+        customer = customer_controller.create(db=db, request=customer_request)
+    
+    # Update the order with the customer_id
+    order_update = order_schema.OrderUpdate(customer_id=customer.id)
+    updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
+    
+    return updated_order

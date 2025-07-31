@@ -5,7 +5,11 @@ from ..services import customer_services
 from ..schemas import menu_items as schema
 from ..schemas import order_details as order_detail_schema
 from ..schemas import payment_method as payment_schema
+from ..schemas import customers as customer_schema
+from ..schemas import orders as order_schema
 from ..controllers import payment_method as payment_controller
+from ..controllers import customers as customer_controller
+from ..controllers import orders as order_controller
 from ..dependencies.database import get_db
 
 router = APIRouter(
@@ -45,8 +49,23 @@ def add_to_cart(menu_item_id: int, quantity: int,
         order_id=order_id
     )
 
-# add customer info
-# email etc isn't required if in restaurant
+@router.post("/add-customer-information", response_model=order_schema.Order)
+def add_customer_information(order_id: int, customer_name: str, 
+                           customer_email: Optional[str] = None,
+                           customer_phone: Optional[int] = None,
+                           customer_address: Optional[str] = None,
+                           db: Session = Depends(get_db)):
+    """
+    Add customer information to an order
+    """
+    return customer_services.add_customer_information(
+        db=db,
+        order_id=order_id,
+        customer_name=customer_name,
+        customer_email=customer_email,
+        customer_phone=customer_phone,
+        customer_address=customer_address
+    )
 
 
 @router.post("/add-payment", response_model=payment_schema.Payment)
