@@ -1,8 +1,13 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
+from typing import Optional
 from ..models.menu_items import MenuItem
 from ..models.menu_item_ingredients import MenuItemIngredient
 from ..models.resources import Resource
+from ..schemas import orders as order_schema
+from ..schemas import order_details as order_detail_schema
+from ..controllers import orders as order_controller
+from ..controllers import order_details as order_detail_controller
 
 
 def get_menu(db: Session):
@@ -61,3 +66,26 @@ def get_menu_item_by_name(db: Session, item_name: str):
             raise HTTPException(status_code=400, detail=f"Menu item '{item_name}' is currently unavailable.")
     
     return menu_item
+
+
+def add_to_cart(db: Session, menu_item_id: int, quantity: int, customer_id: Optional[int] = None, order_id: Optional[int] = None):
+    """
+    Add a menu item to the cart (order)
+    If no order_id is provided, creates a new order
+    """
+    if order_id is None:
+        order_request = order_schema.OrderCreate(
+            description="Customer cart",
+            status=order_schema.StatusType.PENDING,
+            order_type=order_schema.OrderType.DINE_IN
+        )
+        new_order = order_controller.create(db=db, request=order_request)
+        order_id = new_order.id
+    
+    # Add item to the order
+    order_detail_request = order_detail_schema.OrderDetailCreate(
+        order_id=order_id,
+        menu_item_id=menu_item_id,
+        amount=quantity
+    )
+    return order_detail_controller.create(db=db, request=order_detail_request)

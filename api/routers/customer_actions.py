@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from typing import Optional
 from ..services import customer_services
 from ..schemas import menu_items as schema
 from ..schemas import order_details as order_detail_schema
-from ..controllers import order_details as order_detail_controller
 from ..dependencies.database import get_db
 
 router = APIRouter(
@@ -29,13 +29,16 @@ def get_menu_item_by_name(item_name: str, db: Session = Depends(get_db)):
 
 
 @router.post("/add-to-cart", response_model=order_detail_schema.OrderDetail)
-def add_to_cart(order_id: int, menu_item_id: int, quantity: int, db: Session = Depends(get_db)):
+def add_to_cart(menu_item_id: int, quantity: int, 
+                customer_id: Optional[int] = None, order_id: Optional[int] = None, 
+                db: Session = Depends(get_db)):
     """
-    Add a menu item to the cart
+    Add a menu item to the cart (order)
+    If no order_id is provided, creates a new order
     """
-    order_detail_request = order_detail_schema.OrderDetailCreate(
-        order_id=order_id,
-        menu_item_id=menu_item_id,
-        amount=quantity
+    return customer_services.add_to_cart(
+        db=db, 
+        menu_item_id=menu_item_id, 
+        quantity=quantity, 
+        order_id=order_id
     )
-    return order_detail_controller.create(db=db, request=order_detail_request)
