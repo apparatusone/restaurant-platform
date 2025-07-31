@@ -16,7 +16,7 @@ def create(db: Session, request):
         )
 
     status = None
-    if request.payment_type == PaymentType.cash:
+    if request.payment_type == PaymentType.CASH:
         status = PaymentStatus.COMPLETED
     else:
         status = request.status
