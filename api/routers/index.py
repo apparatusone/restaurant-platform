@@ -4,7 +4,7 @@ from . import (
     resources,
     menu_item_ingredients,
     menu_items,
-    payments,
+    payment_method,
     customers,
     staff_actions,
     administrator_actions,
@@ -22,7 +22,7 @@ def load_routes(app):
     app.include_router(resources.router)
     app.include_router(menu_item_ingredients.router)
     app.include_router(menu_items.router)
-    app.include_router(payments.router)
+    app.include_router(payment_method.router)
     app.include_router(customers.router)
     app.include_router(reviews.router)
     app.include_router(promotions.router)

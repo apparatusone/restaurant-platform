@@ -6,7 +6,7 @@ from datetime import datetime, date
 from api.models.menu_item_ingredients import MenuItemIngredient
 from api.models.resources import Resource
 from api.models import promotions as promotion_model
-from api.models.payments import Payment, PaymentStatus
+from api.models.payment_method import Payment, PaymentStatus
 from api.models.orders import Order, StatusType
 from api.models.reviews import Reviews
 from api.models.menu_items import MenuItem

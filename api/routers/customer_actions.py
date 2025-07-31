@@ -4,6 +4,8 @@ from typing import Optional
 from ..services import customer_services
 from ..schemas import menu_items as schema
 from ..schemas import order_details as order_detail_schema
+from ..schemas import payment_method as payment_schema
+from ..controllers import payment_method as payment_controller
 from ..dependencies.database import get_db
 
 router = APIRouter(
@@ -42,3 +44,26 @@ def add_to_cart(menu_item_id: int, quantity: int,
         quantity=quantity, 
         order_id=order_id
     )
+
+# add customer info
+# email etc isn't required if in restaurant
+
+
+@router.post("/add-payment", response_model=payment_schema.Payment)
+def add_payment_method(order_id: int, amount: float, 
+                       payment_type: payment_schema.PaymentType,
+                       db: Session = Depends(get_db)):
+    """
+    Add payment to an order
+    """
+    payment_request = payment_schema.PaymentCreate(
+        order_id=order_id,
+        amount=amount,
+        payment_type=payment_type,
+        status=payment_schema.PaymentStatus.COMPLETED
+    )
+    return payment_controller.create(db=db, request=payment_request)
+
+# checkout
+# payment needed
+# customer info needed

@@ -3,7 +3,7 @@ from typing import Optional
 from pydantic import BaseModel
 from enum import Enum
 from .order_details import OrderDetail
-from .payments import Payment
+from .payment_method import Payment
 
 
 class OrderType(str, Enum):
