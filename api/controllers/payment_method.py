@@ -25,6 +25,7 @@ def create(db: Session, request):
         payment_type=request.payment_type,
         status=status,
         order_id=request.order_id,
+        card_number=request.card_number
     )
 
     try:

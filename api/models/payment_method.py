@@ -25,5 +25,6 @@ class Payment(Base):
         payment_date = Column(DATETIME, nullable=False, default=str(datetime.now()))
         status = Column(Enum(PaymentStatus), nullable=False, default=PaymentStatus.PENDING)
         payment_type = Column(Enum(PaymentType), nullable=False)
+        card_number = Column(String(20), nullable=True)
 
         order = relationship("Order", back_populates="payment")

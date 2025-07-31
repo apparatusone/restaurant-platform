@@ -6,8 +6,11 @@ from ..models.menu_item_ingredients import MenuItemIngredient
 from ..models.resources import Resource
 from ..schemas import orders as order_schema
 from ..schemas import order_details as order_detail_schema
+from ..schemas import payment_method as payment_schema
 from ..controllers import orders as order_controller
 from ..controllers import order_details as order_detail_controller
+from ..controllers import payment_method as payment_controller
+from ..schemas.payment_method import PaymentType
 
 
 def get_menu(db: Session):
@@ -69,10 +72,6 @@ def get_menu_item_by_name(db: Session, item_name: str):
 
 
 def add_to_cart(db: Session, menu_item_id: int, quantity: int, customer_id: Optional[int] = None, order_id: Optional[int] = None):
-    """
-    Add a menu item to the cart (order)
-    If no order_id is provided, creates a new order
-    """
     if order_id is None:
         order_request = order_schema.OrderCreate(
             description="Customer cart",
@@ -89,3 +88,18 @@ def add_to_cart(db: Session, menu_item_id: int, quantity: int, customer_id: Opti
         amount=quantity
     )
     return order_detail_controller.create(db=db, request=order_detail_request)
+
+
+def add_payment_method(db: Session, order_id: int, payment_type: payment_schema.PaymentType,
+                       card_number: Optional[str] = None):
+    payment_request = payment_schema.PaymentCreate(
+        order_id=order_id,
+        payment_type=payment_type,
+        status=payment_schema.PaymentStatus.PENDING,
+        card_number=card_number
+    )
+
+    if payment_type != PaymentType.CASH and card_number is None:
+        raise HTTPException(status_code=400, detail=f"Card number required for {payment_type} payments.")
+
+    return payment_controller.create(db=db, request=payment_request)

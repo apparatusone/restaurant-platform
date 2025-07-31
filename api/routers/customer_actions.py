@@ -51,16 +51,17 @@ def add_to_cart(menu_item_id: int, quantity: int,
 
 @router.post("/add-payment", response_model=payment_schema.Payment)
 def add_payment_method(order_id: int, payment_type: payment_schema.PaymentType,
-                       db: Session = Depends(get_db)):
+                       card_number: Optional[str] = None, db: Session = Depends(get_db)):
     """
     Add payment to an order
+    card_number is optional and only used for card payments
     """
-    payment_request = payment_schema.PaymentCreate(
+    return customer_services.add_payment_method(
+        db=db,
         order_id=order_id,
         payment_type=payment_type,
-        status=payment_schema.PaymentStatus.COMPLETED
+        card_number=card_number
     )
-    return payment_controller.create(db=db, request=payment_request)
 
 # checkout
 # payment needed
