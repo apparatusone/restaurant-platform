@@ -116,8 +116,7 @@ def add_customer_information(db: Session, order_id: int, customer_name: str,
                            customer_phone: Optional[int] = None,
                            customer_address: Optional[str] = None):
     """
-    Add customer information to an existing order
-    Finds existing customer by email or phone, or creates a new one
+    Add customer information to an order
     """
     from ..models.customers import Customer
     
@@ -154,3 +153,5 @@ def add_customer_information(db: Session, order_id: int, customer_name: str,
     updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
     
     return updated_order
+
+

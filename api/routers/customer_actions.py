@@ -82,6 +82,17 @@ def add_payment_method(order_id: int, payment_type: payment_schema.PaymentType,
         card_number=card_number
     )
 
+@router.post("/checkout")
+def add_payment_method(order_id: int,
+                       db: Session = Depends(get_db)):
+    """
+    Send the order to the restaurant.
+    """
+    return customer_services.checkout(
+        db=db,
+        order_id=order_id
+    )
+
 # checkout
 # payment needed
 # customer info needed
