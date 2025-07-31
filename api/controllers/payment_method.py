@@ -14,16 +14,24 @@ def create(db: Session, request):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Order with id {request.order_id} not found"
         )
+    
+    # Check if a payment method already exists
+    existing_payment = db.query(model.Payment).filter(model.Payment.order_id == request.order_id).first()
+    if existing_payment:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Payment method already exists for order {request.order_id}"
+        )
 
-    status = None
+    payment_status = None
     if request.payment_type == PaymentType.CASH:
-        status = PaymentStatus.COMPLETED
+        payment_status = PaymentStatus.COMPLETED
     else:
-        status = request.status
+        payment_status = request.status
 
     new_item = model.Payment(
         payment_type=request.payment_type,
-        status=status,
+        status=payment_status,
         order_id=request.order_id,
         card_number=request.card_number
     )
