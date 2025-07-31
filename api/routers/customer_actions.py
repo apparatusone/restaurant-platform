@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from ..services import customer_services
 from ..schemas import menu_items as schema
+from ..schemas import order_details as order_detail_schema
+from ..controllers import order_details as order_detail_controller
 from ..dependencies.database import get_db
 
 router = APIRouter(
@@ -24,3 +26,16 @@ def get_menu_item_by_name(item_name: str, db: Session = Depends(get_db)):
     Search for a particular menu item by name
     """
     return customer_services.get_menu_item_by_name(db=db, item_name=item_name)
+
+
+@router.post("/add-to-cart", response_model=order_detail_schema.OrderDetail)
+def add_to_cart(order_id: int, menu_item_id: int, quantity: int, db: Session = Depends(get_db)):
+    """
+    Add a menu item to the cart
+    """
+    order_detail_request = order_detail_schema.OrderDetailCreate(
+        order_id=order_id,
+        menu_item_id=menu_item_id,
+        amount=quantity
+    )
+    return order_detail_controller.create(db=db, request=order_detail_request)
