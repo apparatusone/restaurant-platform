@@ -176,26 +176,6 @@ def calculate_order_total(db: Session, order_id: int) -> float:
     
     return float(round(total, 2))
 
-def checkout(db: Session, order_id: int):
-    """
-    Process checkout for an order
-    """
-    from ..models.promotions import Promotion
-    from ..models.orders import Order
-    from datetime import datetime
-    
-    items_cost = calculate_order_total(db, order_id)
-    
-    # Get the promo code (if available)
-    order = db.query(Order).filter(Order.id == order_id).first()
-    promo_discount_percent = 0
-    
-    promotion = db.query(Promotion).filter(Promotion.code == order.promo_code).first()
-    print(promotion)
-    
-    
-    #apply promo
-
 
 def add_promo_code(db: Session, order_id: int, promo_code: str):
     """
@@ -226,3 +206,38 @@ def add_promo_code(db: Session, order_id: int, promo_code: str):
     updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
     
     return updated_order
+
+
+def checkout(db: Session, order_id: int):
+    """
+    Process checkout for an order
+    """
+    from ..models.promotions import Promotion
+    from ..models.orders import Order
+    from datetime import datetime
+    from fastapi import HTTPException
+
+    # Get the order
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    total = calculate_order_total(db, order_id)
+    print("original total: ", total)
+    
+    # Apply any promotion
+    if order.promo_id:
+        promotion = db.query(Promotion).filter(Promotion.id == order.promo_id).first()
+        if promotion:
+            discount_amount = total * (promotion.discount_percent / 100)
+            total = total - discount_amount
+            print(f"Applied {promotion.discount_percent}% discount: -{discount_amount}")
+
+    # Apply tax
+    TAX = 0.0475
+    total = total * (1 + TAX)
+    
+    
+    
+    return round(total, 2)
+    
