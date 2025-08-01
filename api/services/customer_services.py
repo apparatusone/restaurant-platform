@@ -170,7 +170,7 @@ def remove_item_from_cart(db: Session, order_id: int, menu_item_id: int):
     db.delete(item)
     db.commit()
     
-    return {"message": f"{item.name} removed from cart"}
+    return {"message": f"{item.menu_item.name} removed from cart"}
 
 
 def add_payment_method(db: Session, order_id: int, payment_type: payment_schema.PaymentType,
@@ -402,8 +402,9 @@ def checkout(db: Session, order_id: int):
     order_update = OrderUpdate(status=StatusType.IN_PROGRESS)
     updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
 
-    # Update (deduct) raw ingredients 
-
+    # Update (deduct) raw ingredients
+    if not update_raw_ingredients(db, order_id):
+        raise HTTPException(status_code=500, detail="Failed to update stock quantities")
     
     # Update menu if insufficient ingredients 
     # Send to kitchen 
