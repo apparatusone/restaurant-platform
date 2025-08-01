@@ -19,11 +19,11 @@ router = APIRouter(
 
 
 @router.get("/menu", response_model=list[schema.MenuItems])
-def get_available_menu(db: Session = Depends(get_db)):
+def get_available_menu(filter_category: Optional[customer_services.FilterCategory] = None, db: Session = Depends(get_db)):
     """
-    Get available menu items based on resource availability
+    Get available menu items based on availability
     """
-    return customer_services.get_menu(db=db)
+    return customer_services.get_menu(db=db, filter_category=filter_category)
 
 
 @router.get("/menu/{item_name}", response_model=schema.MenuItems)

@@ -17,10 +17,21 @@ from ..models.order_details import OrderDetail
 from ..models.menu_items import MenuItem
 from ..models.orders import Order
 from decimal import Decimal
+from enum import Enum
 
+class FilterCategory(str, Enum):
+    VEGETARIAN = "vegetarian"
+    VEGAN = "vegan"
+    GLUTEN_FREE = "gluten_free"
+    REGULAR = "regular"
 
-def get_menu(db: Session):
-    all_menu_items = db.query(MenuItem).all()
+def get_menu(db: Session, filter_category: Optional[FilterCategory] = None):
+    # Apply filter
+    query = db.query(MenuItem)
+    if filter_category:
+        query = query.filter(MenuItem.food_category == filter_category.value)
+    
+    all_menu_items = query.all()
     available_items = []
     
     for item in all_menu_items:
@@ -166,11 +177,14 @@ def remove_item_from_cart(db: Session, order_id: int, menu_item_id: int):
     if not item:
         raise HTTPException(status_code=404, detail="Item not found in cart")
     
+    # Get the menu item name before deleting
+    menu_item_name = item.menu_item.name
+    
     # Delete the item
     db.delete(item)
     db.commit()
     
-    return {"message": f"{item.menu_item.name} removed from cart"}
+    return {"message": f"{menu_item_name} removed from cart"}
 
 
 def add_payment_method(db: Session, order_id: int, payment_type: payment_schema.PaymentType,
