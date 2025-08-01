@@ -26,6 +26,7 @@ class OrderBase(BaseModel):
     description: Optional[str] = None
     status: StatusType = StatusType.PENDING
     order_type: OrderType = OrderType.DINE_IN
+    promo_id: Optional[int] = None
 
 
 class OrderCreate(OrderBase):
@@ -37,6 +38,7 @@ class OrderUpdate(BaseModel):
     description: Optional[str] = None
     status: Optional[StatusType] = None
     order_type: Optional[OrderType] = None
+    promo_id: Optional[int] = None
 
 
 class Order(OrderBase):

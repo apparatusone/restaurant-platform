@@ -88,7 +88,7 @@ def add_promo_code_to_order(order_id: int, promo_code: str, db: Session = Depend
     """
     Add a promo code to an order
     """
-    return customer_services.apply_promo_code(
+    return customer_services.add_promo_code(
         db=db,
         order_id=order_id,
         promo_code=promo_code
@@ -105,6 +105,3 @@ def checkout(order_id: int,
         db=db,
         order_id=order_id
     )
-
-# payment needed
-# customer info needed

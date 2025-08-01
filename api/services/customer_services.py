@@ -15,6 +15,7 @@ from ..controllers import customers as customer_controller
 from ..schemas.payment_method import PaymentType
 from ..models.order_details import OrderDetail
 from ..models.menu_items import MenuItem
+from decimal import Decimal
 
 
 def get_menu(db: Session):
@@ -161,22 +162,67 @@ def calculate_order_total(db: Session, order_id: int) -> float:
     """
     Calculate the total amount for an order
     """
-    
     # Get all order details on an order
     order_details = db.query(OrderDetail).join(MenuItem).filter(
         OrderDetail.order_id == order_id
     ).all()
     
-    total = 0.0
+    total = Decimal('0.00')
     
     for detail in order_details:
-        item_total = detail.amount * detail.menu_item.item_price
+        # handle data types
+        item_total = Decimal(detail.amount) * detail.menu_item.price
         total += item_total
     
-    return round(total, 2)
+    return float(round(total, 2))
 
 def checkout(db: Session, order_id: int):
     """
     Process checkout for an order
     """
-    pass
+    from ..models.promotions import Promotion
+    from ..models.orders import Order
+    from datetime import datetime
+    
+    items_cost = calculate_order_total(db, order_id)
+    
+    # Get the promo code (if available)
+    order = db.query(Order).filter(Order.id == order_id).first()
+    promo_discount_percent = 0
+    
+    promotion = db.query(Promotion).filter(Promotion.code == order.promo_code).first()
+    print(promotion)
+    
+    
+    #apply promo
+
+
+def add_promo_code(db: Session, order_id: int, promo_code: str):
+    """
+    Apply a promo code to an order
+    """
+    from ..models.promotions import Promotion
+    from ..models.orders import Order
+    from ..schemas.orders import OrderUpdate
+    from ..controllers import orders as order_controller
+    from fastapi import HTTPException, status
+    from datetime import datetime
+    
+    promo = db.query(Promotion).filter(Promotion.code == promo_code).first()
+    
+    if not promotion:
+        raise HTTPException(status_code=404, detail="Promo code not found.")
+    
+    # check if promo expired
+    if promotion.expiration_date and promotion.expiration_date < datetime.now():
+        raise HTTPException(status_code=400, detail="Promo code has expired")
+    
+    # check that the order exists
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found.")
+    
+    order_update = OrderUpdate(promo_id=promotion.id)
+    updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
+    
+    return updated_order
