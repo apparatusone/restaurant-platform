@@ -82,8 +82,21 @@ def add_payment_method(order_id: int, payment_type: payment_schema.PaymentType,
         card_number=card_number
     )
 
+
+@router.post("/add-promo-code-to-order", response_model=order_schema.Order)
+def add_promo_code_to_order(order_id: int, promo_code: str, db: Session = Depends(get_db)):
+    """
+    Add a promo code to an order
+    """
+    return customer_services.apply_promo_code(
+        db=db,
+        order_id=order_id,
+        promo_code=promo_code
+    )
+
+
 @router.post("/checkout")
-def add_payment_method(order_id: int,
+def checkout(order_id: int,
                        db: Session = Depends(get_db)):
     """
     Send the order to the restaurant.
@@ -93,6 +106,5 @@ def add_payment_method(order_id: int,
         order_id=order_id
     )
 
-# checkout
 # payment needed
 # customer info needed
