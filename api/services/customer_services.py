@@ -213,6 +213,7 @@ def process_payment(db: Session, order: Order):
     # placeholder logic, will not be implemented
     # get payment info from the order id
     from ..models.payment_method import Payment
+    from ..schemas.payment_method import PaymentType
     
     payment = order.payment
     if not payment:
@@ -224,7 +225,7 @@ def process_payment(db: Session, order: Order):
         "transaction_id": "txn_ABC123456789"
     }
 
-    if order.payment != "CASH":
+    if order.payment != PaymentType.CASH:
         # "send " payment to processor
         # wait for a response
         response = example_response
@@ -243,6 +244,8 @@ def checkout(db: Session, order_id: int):
     from ..models.orders import Order
     from datetime import datetime
     from fastapi import HTTPException
+    from ..schemas.orders import StatusType
+    from ..schemas.orders import OrderUpdate
 
     # Get the order
     order = db.query(Order).filter(Order.id == order_id).first()
@@ -266,6 +269,17 @@ def checkout(db: Session, order_id: int):
 
     # process the payment
     payment_result = process_payment(db, order)
-    print(payment_result)
+    
+    #change order status to paid
+    order_update = OrderUpdate(paid=True)
+    updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
+
+    # Change order to in progress
+    order_update = OrderUpdate(status=StatusType.IN_PROGRESS)
+    updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
+
+    # Update raw ingredients 
+    # Update menu if insufficient ingredients 
+    # Send to kitchen 
     
     return round(total, 2)
