@@ -105,11 +105,11 @@ def add_payment_method(db: Session, order_id: int, payment_type: payment_schema.
         card_number=card_number
     )
 
-    if payment_type != PaymentType.CASH and card_number is None:
+    if payment_type != payment_schema.PaymentType.CASH and card_number is None:
         raise HTTPException(status_code=400, detail=f"Card number required for {payment_type} payments.")
 
     # if customer enters a card number with cash, remove it
-    if payment_type != PaymentType.CASH:
+    if payment_type == payment_schema.PaymentType.CASH:
         payment_request.card_number = None
 
     return payment_controller.create(db=db, request=payment_request)
@@ -223,8 +223,6 @@ def process_payment(db: Session, order: Order):
         "status": "approved", # assume payment was succcessful
         "transaction_id": "txn_ABC123456789"
     }
-
-    print(order.payment)
 
     if order.payment != "CASH":
         # "send " payment to processor
