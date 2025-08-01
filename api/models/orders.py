@@ -29,7 +29,9 @@ class Order(Base):
     description = Column(String(300))
     status = Column(Enum(StatusType), nullable=False, default=StatusType.PENDING)
     order_type = Column(Enum(OrderType), nullable=False, default=OrderType.DINE_IN)
+    promo_id = Column(Integer, ForeignKey("promotions.id"), nullable=True)
 
     customer = relationship("Customer", back_populates="orders")
     order_details = relationship("OrderDetail", back_populates="order")
     payment = relationship("Payment", back_populates="order", uselist=False, cascade="all, delete-orphan")
+    promo = relationship("Promotion", back_populates="orders")

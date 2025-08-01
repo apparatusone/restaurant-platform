@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy.orm import relationship
 from datetime import datetime
 from ..dependencies.database import Base
 
@@ -11,3 +12,5 @@ class Promotion(Base):
     discount_percent = Column(Integer, nullable=False)
     expiration_date = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
+    
+    orders = relationship("Order", back_populates="promo")
