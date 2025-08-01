@@ -15,6 +15,7 @@ from ..controllers import customers as customer_controller
 from ..schemas.payment_method import PaymentType
 from ..models.order_details import OrderDetail
 from ..models.menu_items import MenuItem
+from ..models.orders import Order
 from decimal import Decimal
 
 
@@ -158,25 +159,6 @@ def add_customer_information(db: Session, order_id: int, customer_name: str,
     return updated_order
 
 
-def calculate_order_total(db: Session, order_id: int) -> float:
-    """
-    Calculate the total amount for an order
-    """
-    # Get all order details on an order
-    order_details = db.query(OrderDetail).join(MenuItem).filter(
-        OrderDetail.order_id == order_id
-    ).all()
-    
-    total = Decimal('0.00')
-    
-    for detail in order_details:
-        # handle data types
-        item_total = Decimal(detail.amount) * detail.menu_item.price
-        total += item_total
-    
-    return float(round(total, 2))
-
-
 def add_promo_code(db: Session, order_id: int, promo_code: str):
     """
     Apply a promo code to an order
@@ -208,6 +190,53 @@ def add_promo_code(db: Session, order_id: int, promo_code: str):
     return updated_order
 
 
+def calculate_order_total(db: Session, order_id: int) -> float:
+    """
+    Calculate the total amount for an order
+    """
+    # Get all order details on an order
+    order_details = db.query(OrderDetail).join(MenuItem).filter(
+        OrderDetail.order_id == order_id
+    ).all()
+    
+    total = Decimal('0.00')
+    
+    for detail in order_details:
+        # handle data types
+        item_total = Decimal(detail.amount) * detail.menu_item.price
+        total += item_total
+    
+    return float(round(total, 2))
+
+
+def process_payment(db: Session, order: Order):
+    # placeholder logic, will not be implemented
+    # get payment info from the order id
+    from ..models.payment_method import Payment
+    
+    payment = order.payment
+    if not payment:
+        raise HTTPException(status_code=400, detail="No payment method found for this order")
+
+
+    example_response = {
+        "status": "approved", # assume payment was succcessful
+        "transaction_id": "txn_ABC123456789"
+    }
+
+    print(order.payment)
+
+    if order.payment != "CASH":
+        # "send " payment to processor
+        # wait for a response
+        response = example_response
+
+         # handle response
+
+    return True
+
+
+
 def checkout(db: Session, order_id: int):
     """
     Process checkout for an order
@@ -236,8 +265,9 @@ def checkout(db: Session, order_id: int):
     # Apply tax
     TAX = 0.0475
     total = total * (1 + TAX)
-    
-    
+
+    # process the payment
+    payment_result = process_payment(db, order)
+    print(payment_result)
     
     return round(total, 2)
-    
