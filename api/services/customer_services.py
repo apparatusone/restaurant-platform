@@ -13,6 +13,8 @@ from ..controllers import order_details as order_detail_controller
 from ..controllers import payment_method as payment_controller
 from ..controllers import customers as customer_controller
 from ..schemas.payment_method import PaymentType
+from ..models.order_details import OrderDetail
+from ..models.menu_items import MenuItem
 
 
 def get_menu(db: Session):
@@ -155,3 +157,26 @@ def add_customer_information(db: Session, order_id: int, customer_name: str,
     return updated_order
 
 
+def calculate_order_total(db: Session, order_id: int) -> float:
+    """
+    Calculate the total amount for an order
+    """
+    
+    # Get all order details on an order
+    order_details = db.query(OrderDetail).join(MenuItem).filter(
+        OrderDetail.order_id == order_id
+    ).all()
+    
+    total = 0.0
+    
+    for detail in order_details:
+        item_total = detail.amount * detail.menu_item.item_price
+        total += item_total
+    
+    return round(total, 2)
+
+def checkout(db: Session, order_id: int):
+    """
+    Process checkout for an order
+    """
+    pass
