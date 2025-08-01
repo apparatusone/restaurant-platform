@@ -210,11 +210,11 @@ def add_promo_code(db: Session, order_id: int, promo_code: str):
     
     promo = db.query(Promotion).filter(Promotion.code == promo_code).first()
     
-    if not promotion:
+    if not promo:
         raise HTTPException(status_code=404, detail="Promo code not found.")
     
     # check if promo expired
-    if promotion.expiration_date and promotion.expiration_date < datetime.now():
+    if promo.expiration_date and promo.expiration_date < datetime.now():
         raise HTTPException(status_code=400, detail="Promo code has expired")
     
     # check that the order exists
@@ -222,7 +222,7 @@ def add_promo_code(db: Session, order_id: int, promo_code: str):
     if not order:
         raise HTTPException(status_code=404, detail="Order not found.")
     
-    order_update = OrderUpdate(promo_id=promotion.id)
+    order_update = OrderUpdate(promo_id=promo.id)
     updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
     
     return updated_order
