@@ -34,7 +34,6 @@ def get_menu_item_by_name(item_name: str, db: Session = Depends(get_db)):
     return customer_services.get_menu_item_by_name(db=db, item_name=item_name)
 
 
-#TODO when adding the same food to the cart, it should be updated instead of adding a new entry
 @router.post("/add-to-cart", response_model=order_detail_schema.OrderDetail)
 def add_to_cart(menu_item_id: int, quantity: int, 
                 customer_id: Optional[int] = None, order_id: Optional[int] = None, 
@@ -49,6 +48,18 @@ def add_to_cart(menu_item_id: int, quantity: int,
         quantity=quantity, 
         order_id=order_id
     )
+
+@router.delete("/remove-from-cart")
+def remove_from_cart(order_id: int, menu_item_id: int, db: Session = Depends(get_db)):
+    """
+    Removes an item from the customers cart
+    """
+    return customer_services.remove_item_from_cart(
+        db=db, 
+        order_id=order_id,
+        menu_item_id=menu_item_id
+    )
+    
 
 @router.post("/add-customer-information", response_model=order_schema.Order)
 def add_customer_information(order_id: int, customer_name: str, 
