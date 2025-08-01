@@ -78,6 +78,13 @@ def get_menu_item_by_name(db: Session, item_name: str):
 
 
 def add_to_cart(db: Session, menu_item_id: int, quantity: int, customer_id: Optional[int] = None, order_id: Optional[int] = None):
+    from ..models.menu_items import MenuItem
+    from ..models.menu_item_ingredients import MenuItemIngredient
+    from ..models.resources import Resource
+    from fastapi import HTTPException
+    from ..models.order_details import OrderDetail
+    
+    # create an order
     if order_id is None:
         order_request = order_schema.OrderCreate(
             description="Customer cart",
@@ -87,13 +94,83 @@ def add_to_cart(db: Session, menu_item_id: int, quantity: int, customer_id: Opti
         new_order = order_controller.create(db=db, request=order_request)
         order_id = new_order.id
     
-    # Add item to the order
-    order_detail_request = order_detail_schema.OrderDetailCreate(
-        order_id=order_id,
-        menu_item_id=menu_item_id,
-        amount=quantity
-    )
-    return order_detail_controller.create(db=db, request=order_detail_request)
+    # make sure menu item exists
+    menu_item = db.query(MenuItem).filter(MenuItem.id == menu_item_id).first()
+    if not menu_item:
+        raise HTTPException(status_code=404, detail="Menu item not found")
+    
+    # get the ingredients for the item
+    required_ingredients = db.query(MenuItemIngredient).filter(
+        MenuItemIngredient.menu_item_id == menu_item_id
+    ).all()
+    
+    max_possible = float('inf')
+    
+    # Calculate how many can be made
+    for ingredient in required_ingredients:
+        resource = db.query(Resource).filter(Resource.id == ingredient.resource_id).first()
+        if resource:
+            possible_quantity = resource.amount // ingredient.amount
+            max_possible = min(max_possible, possible_quantity)
+    
+    # Check if item already exists in cart
+    existing_item = db.query(OrderDetail).filter(
+        OrderDetail.order_id == order_id,
+        OrderDetail.menu_item_id == menu_item_id
+    ).first()
+    
+    if existing_item:
+        # Item exists, check if new total quantity is available
+        new_total_quantity = existing_item.amount + quantity
+        if new_total_quantity > max_possible:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Cannot add {quantity} {menu_item.name}, max is {max_possible} (you currently have {existing_item.amount} in cart)"
+            )
+        
+        # Update the cart
+        existing_item.amount = new_total_quantity
+        db.commit()
+        db.refresh(existing_item)
+        return existing_item
+    else:
+        # Add a new menu item
+        if quantity > max_possible:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Cannot add {quantity} {menu_item.name}, max is {max_possible}"
+            )
+        
+        # Add new item to the order
+        order_detail_request = order_detail_schema.OrderDetailCreate(
+            order_id=order_id,
+            menu_item_id=menu_item_id,
+            amount=quantity
+        )
+        return order_detail_controller.create(db=db, request=order_detail_request)
+
+
+def remove_item_from_cart(db: Session, order_id: int, menu_item_id: int):
+    """
+    Delete an item from the cart
+    """
+    from ..models.order_details import OrderDetail
+    from fastapi import HTTPException
+    
+    # Find the item in the cart
+    item = db.query(OrderDetail).filter(
+        OrderDetail.order_id == order_id,
+        OrderDetail.menu_item_id == menu_item_id
+    ).first()
+    
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found in cart")
+    
+    # Delete the item
+    db.delete(item)
+    db.commit()
+    
+    return {"message": f"{item.name} removed from cart"}
 
 
 def add_payment_method(db: Session, order_id: int, payment_type: payment_schema.PaymentType,
@@ -235,6 +312,53 @@ def process_payment(db: Session, order: Order):
     return True
 
 
+def update_raw_ingredients(db: Session, order_id: int):
+    """
+    Deduct raw ingredients based on order items
+    """
+    from ..models.orders import Order
+    from ..models.order_details import OrderDetail
+    from ..models.menu_item_ingredients import MenuItemIngredient
+    from ..models.resources import Resource
+    from fastapi import HTTPException
+    
+    order_details = db.query(OrderDetail).filter(OrderDetail.order_id == order_id).all()
+    
+    if not order_details:
+        raise HTTPException(status_code=404, detail="No items found in order")
+    
+    # For each menu item in the order
+    for detail in order_details:
+        menu_item_id = detail.menu_item_id
+        quantity_ordered = detail.amount
+        
+        # Get required ingredients for this menu item
+        required_ingredients = db.query(MenuItemIngredient).filter(
+            MenuItemIngredient.menu_item_id == menu_item_id
+        ).all()
+        
+        # update each ingredient in  stock
+        for ingredient in required_ingredients:
+            resource = db.query(Resource).filter(Resource.id == ingredient.resource_id).first()
+            
+            if resource:
+                # Calculate total amount needed (ingredient amount * quantity ordered)
+                total_needed = ingredient.amount * quantity_ordered
+                
+                # if 2 customers are ordering at the same time, the may be able to add
+                # an item when there are insufficient resources
+                if resource.quantity < total_needed:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Insufficient {resource.item} inventory. Need {total_needed}, have {resource.quantity}"
+                    )
+                
+                resource.quantity -= total_needed
+    
+    # Commit all changes
+    db.commit()
+    return True
+
 
 def checkout(db: Session, order_id: int):
     """
@@ -278,7 +402,9 @@ def checkout(db: Session, order_id: int):
     order_update = OrderUpdate(status=StatusType.IN_PROGRESS)
     updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
 
-    # Update raw ingredients 
+    # Update (deduct) raw ingredients 
+
+    
     # Update menu if insufficient ingredients 
     # Send to kitchen 
     
