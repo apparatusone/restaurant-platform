@@ -33,6 +33,6 @@ class Order(Base):
     paid = Column(Boolean, nullable=False, default=False)
 
     customer = relationship("Customer", back_populates="orders")
-    order_details = relationship("OrderDetail", back_populates="order")
+    order_details = relationship("OrderDetail", back_populates="order", cascade="all, delete-orphan")
     payment = relationship("Payment", back_populates="order", uselist=False, cascade="all, delete-orphan")
     promo = relationship("Promotion", back_populates="orders")

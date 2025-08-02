@@ -21,7 +21,7 @@ class Payment(Base):
         __tablename__ = "payment_method"
 
         id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-        order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+        order_id = Column(Integer, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
         payment_date = Column(DATETIME, nullable=False, default=str(datetime.now()))
         status = Column(Enum(PaymentStatus), nullable=False, default=PaymentStatus.PENDING)
         payment_type = Column(Enum(PaymentType), nullable=False)

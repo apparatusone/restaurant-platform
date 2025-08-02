@@ -7,7 +7,7 @@ class OrderDetail(Base):
     __tablename__ = "order_details"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    order_id = Column(Integer, ForeignKey("orders.id"))
+    order_id = Column(Integer, ForeignKey("orders.id", ondelete="CASCADE"))
     menu_item_id = Column(Integer, ForeignKey("menu_items.id"), nullable=False)
     amount = Column(Integer, index=True, nullable=False)
 
