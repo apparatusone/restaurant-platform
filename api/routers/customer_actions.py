@@ -1,15 +1,17 @@
-from fastapi import APIRouter, Depends, Response, Cookie, HTTPException
+from fastapi import APIRouter, Depends, Response, Cookie, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Annotated
 from ..services import customer_services
 from ..schemas import menu_items as schema
 from ..schemas import order_details as order_detail_schema
 from ..schemas import payment_method as payment_schema
 from ..schemas import customers as customer_schema
 from ..schemas import orders as order_schema
+from ..schemas import reviews as review_schema
 from ..controllers import payment_method as payment_controller
 from ..controllers import customers as customer_controller
 from ..controllers import orders as order_controller
+from ..controllers import reviews as review_controller
 from ..dependencies.database import get_db
 from ..schemas.orders import OrderType
 
@@ -166,7 +168,7 @@ def checkout(response: Response,
     return result
 
 
-@router.get("/track_order/{tracking_number}")
+@router.get("/track-order/{tracking_number}")
 def get_tracking_information(tracking_number: str, db: Session = Depends(get_db)):
     """
     Get order tracking information using tracking number
@@ -175,3 +177,25 @@ def get_tracking_information(tracking_number: str, db: Session = Depends(get_db)
         db=db,
         tracking_number=tracking_number
     )
+
+
+@router.post("/review-dish", response_model=review_schema.Reviews)
+def add_review_to_menu_item(
+    menu_item_id: int,
+    customer_name: str,
+    rating: Annotated[int, Query(ge=1, le=5, description="Rating from 1 to 5 stars")],
+    review_text: Annotated[Optional[str], Query(description="Optional review comments")] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Add customer review to menu item
+    """
+    # Create the request object for the controller
+    request = review_schema.ReviewsCreate(
+        menu_item_id=menu_item_id,
+        customer_name=customer_name,
+        rating=rating,
+        review_text=review_text
+    )
+    
+    return review_controller.create(db=db, request=request)
