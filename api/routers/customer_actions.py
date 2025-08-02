@@ -52,6 +52,7 @@ def add_to_cart(response: Response, menu_item_id: int, quantity: int,
     )
     
     # Set cookie with order_id in the customers browser
+    # this would probably be implemented with a json token with a lot more complexity
     response.set_cookie(key="order_id", value=str(result["order_id"]), max_age=3600)
     return result
 
@@ -139,7 +140,7 @@ def add_promo_code_to_order(promo_code: str,
     if not order_id:
         raise HTTPException(status_code=400, detail="No active order found")
         
-    return customer_services.apply_promo_code(
+    return customer_services.add_promo_code(
         db=db,
         order_id=order_id,
         promo_code=promo_code
@@ -147,7 +148,8 @@ def add_promo_code_to_order(promo_code: str,
 
 
 @router.post("/checkout")
-def checkout(order_id: Optional[int] = Cookie(None, include_in_schema=False),
+def checkout(response: Response, 
+             order_id: Optional[int] = Cookie(None, include_in_schema=False),
              db: Session = Depends(get_db)):
     """
     Send the order to the restaurant.
@@ -155,7 +157,10 @@ def checkout(order_id: Optional[int] = Cookie(None, include_in_schema=False),
     if not order_id:
         raise HTTPException(status_code=400, detail="No active order found")
         
-    return customer_services.checkout(
+    result = customer_services.checkout(
         db=db,
-        order_id=order_id
+        order_id=order_id,
+        response=response
     )
+    
+    return result

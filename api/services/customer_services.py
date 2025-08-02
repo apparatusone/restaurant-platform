@@ -368,20 +368,20 @@ def update_raw_ingredients(db: Session, order_id: int):
                 
                 # if 2 customers are ordering at the same time, the may be able to add
                 # an item when there are insufficient resources
-                if resource.quantity < total_needed:
+                if resource.amount < total_needed:
                     raise HTTPException(
                         status_code=400, 
                         detail=f"Insufficient {resource.item} inventory. Need {total_needed}, have {resource.quantity}"
                     )
                 
-                resource.quantity -= total_needed
+                resource.amount -= total_needed
     
     # Commit all changes
     db.commit()
     return True
 
 
-def checkout(db: Session, order_id: int):
+def checkout(db: Session, order_id: int, response=None):
     """
     Process checkout for an order
     """
@@ -426,6 +426,10 @@ def checkout(db: Session, order_id: int):
     # Update (deduct) raw ingredients
     if not update_raw_ingredients(db, order_id):
         raise HTTPException(status_code=500, detail="Failed to update stock")
+
+    # Clear the browser cookie after successful checkout
+    if response:
+        response.delete_cookie(key="order_id")
     
     # Update menu if insufficient ingredients 
     # Send to kitchen 
