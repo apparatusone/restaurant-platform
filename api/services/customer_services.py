@@ -525,3 +525,35 @@ def choose_order_type(db: Session, order_id: int, type):
     order_update = OrderUpdate(order_type=type)
     
     return order_controller.update(db=db, request=order_update, item_id=order_id)
+
+
+def get_reviews(db: Session):
+    """
+    Get menu items that have reviews and the reviews
+    """
+    from ..models.menu_items import MenuItem
+    from ..models.reviews import Reviews
+    
+    # get menu items that have reviews
+    menu_items_with_reviews = db.query(MenuItem).join(Reviews).distinct().all()
+    
+    result = []
+    for menu_item in menu_items_with_reviews:
+        # get reviews
+        reviews = db.query(Reviews).filter(Reviews.menu_item_id == menu_item.id).all()
+        
+        menu_item_data = {
+            "menu_item_name": menu_item.name,
+            "reviews": [
+                {
+                    "customer_name": review.customer_name,
+                    "rating": review.rating,
+                    "review_text": review.review_text,
+                    "created_at": review.created_at
+                }
+                for review in reviews
+            ]
+        }
+        result.append(menu_item_data)
+    
+    return result

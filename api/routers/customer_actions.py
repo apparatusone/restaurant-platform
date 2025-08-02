@@ -199,3 +199,11 @@ def add_review_to_menu_item(
     )
     
     return review_controller.create(db=db, request=request)
+
+
+@router.get("/view-reviews")
+def get_reviews(db: Session = Depends(get_db)):
+    """
+    Get menu items that have reviews and the reviews
+    """
+    return customer_services.get_reviews(db=db)
