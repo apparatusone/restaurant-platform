@@ -95,7 +95,16 @@ def add_to_cart(db: Session, menu_item_id: int, quantity: int, customer_id: Opti
     from fastapi import HTTPException
     from ..models.order_details import OrderDetail
     
-    # create an order
+    # check if id (from cookie) exists or create an order
+    from ..models.orders import Order
+    
+    if order_id is not None:
+        # Check if the order from cookie still exists
+        existing_order = db.query(Order).filter(Order.id == order_id).first()
+        if not existing_order:
+            # Order doesn't exist anymore, create a new one
+            order_id = None
+    
     if order_id is None:
         order_request = order_schema.OrderCreate(
             description="Customer cart",
@@ -430,9 +439,11 @@ def checkout(db: Session, order_id: int, response=None):
     # Clear the browser cookie after successful checkout
     if response:
         response.delete_cookie(key="order_id")
+
+    # the "order date" and time need to be updated at checkout
     
     # Update menu if insufficient ingredients 
-    # Send to kitchen 
+    # Send to kitchen (print ticket)
     
     return round(total, 2)
 
