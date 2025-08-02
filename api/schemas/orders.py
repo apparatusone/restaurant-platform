@@ -28,6 +28,7 @@ class OrderBase(BaseModel):
     order_type: OrderType = OrderType.DINE_IN
     promo_id: Optional[int] = None
     paid: bool = False
+    tracking_number: Optional[str] = None
 
 
 class OrderCreate(OrderBase):
@@ -41,6 +42,7 @@ class OrderUpdate(BaseModel):
     order_type: Optional[OrderType] = None
     promo_id: Optional[int] = None
     paid: Optional[bool] = None
+    tracking_number: Optional[str] = None
 
 
 class Order(OrderBase):

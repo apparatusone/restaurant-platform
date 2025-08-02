@@ -1,3 +1,5 @@
+import random
+import string
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from typing import Optional
@@ -390,6 +392,13 @@ def update_raw_ingredients(db: Session, order_id: int):
     return True
 
 
+def generate_tracking_number():
+    """
+    generate an 8-digit random tracking number
+    """
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+
+
 def checkout(db: Session, order_id: int, response=None):
     """
     Process checkout for an order
@@ -444,16 +453,48 @@ def checkout(db: Session, order_id: int, response=None):
     
     # Update menu if insufficient ingredients 
     # Send to kitchen (print ticket)
+
+    # if takeout or delivery provide tracking number
+    tracking_number = None
+    # Check order type using string values to avoid enum comparison issues
+    if order.order_type.value in ["takeout", "delivery"]:
+        # only generate if no existing number
+        if not order.tracking_number:
+            tracking_number = generate_tracking_number()
+            
+            # check for duplicate tracking number
+            while db.query(Order).filter(Order.tracking_number == tracking_number).first():
+                tracking_number = generate_tracking_number()
+            
+            # update the order with the tracking number
+            order_update = OrderUpdate(tracking_number=tracking_number)
+            updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
+            # Refresh the order object to get the updated tracking number
+            db.refresh(order)
+        else:
+            tracking_number = order.tracking_number
     
-    return round(total, 2)
+    # Prepare response message
+    response_data = {
+        "message": "Order successfully created",
+        "total": round(total, 2)
+    }
+    
+    if tracking_number:
+        response_data["tracking_number"] = tracking_number
+    
+    return response_data
 
 
 def choose_order_type(db: Session, order_id: int, type):
     """
     Update the order type (dine_in, takeout, delivery)
+    Tracking number will be generated at checkout for takeout and delivery orders
     """
     from ..schemas.orders import OrderUpdate
     from ..controllers import orders as order_controller
     
+    # Create the order update with the new type
     order_update = OrderUpdate(order_type=type)
+    
     return order_controller.update(db=db, request=order_update, item_id=order_id)

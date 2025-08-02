@@ -31,6 +31,7 @@ class Order(Base):
     order_type = Column(Enum(OrderType), nullable=False, default=OrderType.DINE_IN)
     promo_id = Column(Integer, ForeignKey("promotions.id"), nullable=True)
     paid = Column(Boolean, nullable=False, default=False)
+    tracking_number = Column(String(50), nullable=True, unique=True, index=True)
 
     customer = relationship("Customer", back_populates="orders")
     order_details = relationship("OrderDetail", back_populates="order", cascade="all, delete-orphan")
