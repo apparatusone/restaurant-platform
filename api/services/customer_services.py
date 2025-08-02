@@ -486,6 +486,30 @@ def checkout(db: Session, order_id: int, response=None):
     return response_data
 
 
+def get_tracking_information(db: Session, tracking_number: str):
+    """
+    Get order tracking information by tracking number
+    """
+    from ..models.orders import Order
+    from fastapi import HTTPException
+    
+    # Find the order by tracking number
+    order = db.query(Order).filter(Order.tracking_number == tracking_number).first()
+    
+    if not order:
+        raise HTTPException(status_code=404, detail="Tracking number not found")
+    
+    # Return tracking information
+    return {
+        "tracking_number": tracking_number,
+        "order_id": order.id,
+        "status": order.status.value,
+        "order_type": order.order_type.value,
+        "order_date": order.order_date,
+        "paid": order.paid
+    }
+
+
 def choose_order_type(db: Session, order_id: int, type):
     """
     Update the order type (dine_in, takeout, delivery)

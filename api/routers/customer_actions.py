@@ -164,3 +164,14 @@ def checkout(response: Response,
     )
     
     return result
+
+
+@router.get("/track_order/{tracking_number}")
+def get_tracking_information(tracking_number: str, db: Session = Depends(get_db)):
+    """
+    Get order tracking information using tracking number
+    """
+    return customer_services.get_tracking_information(
+        db=db,
+        tracking_number=tracking_number
+    )
