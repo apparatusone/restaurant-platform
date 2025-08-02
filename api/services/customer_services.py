@@ -1,5 +1,6 @@
 import random
 import string
+from datetime import datetime
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from typing import Optional
@@ -450,6 +451,8 @@ def checkout(db: Session, order_id: int, response=None):
         response.delete_cookie(key="order_id")
 
     # the "order date" and time need to be updated at checkout
+    order_update = OrderUpdate(order_date=datetime.now())
+    order_controller.update(db=db, request=order_update, item_id=order_id)
     
     # Update menu if insufficient ingredients 
     # Send to kitchen (print ticket)
