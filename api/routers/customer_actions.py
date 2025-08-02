@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response, Cookie, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
 from ..services import customer_services
@@ -35,27 +35,35 @@ def get_menu_item_by_name(item_name: str, db: Session = Depends(get_db)):
     return customer_services.get_menu_item_by_name(db=db, item_name=item_name)
 
 
-@router.post("/add-to-cart", response_model=order_detail_schema.OrderDetail)
-def add_to_cart(menu_item_id: int, quantity: int, 
-                customer_id: Optional[int] = None, order_id: Optional[int] = None, 
+@router.post("/add-to-cart")
+def add_to_cart(response: Response, menu_item_id: int, quantity: int, 
+                customer_id: Optional[int] = None, 
+                order_id: Optional[int] = Cookie(None),
                 db: Session = Depends(get_db)):
     """
     Add a menu item to the cart (order)
     If no order_id is provided, creates a new order
     """
-    return customer_services.add_to_cart(
+    result = customer_services.add_to_cart(
         db=db, 
         menu_item_id=menu_item_id, 
         quantity=quantity, 
         order_id=order_id
     )
+    
+    # Set cookie with order_id in the customers browser
+    response.set_cookie(key="order_id", value=str(result["order_id"]), max_age=3600)
+    return result
 
 
 @router.delete("/remove-from-cart")
-def remove_from_cart(order_id: int, menu_item_id: int, db: Session = Depends(get_db)):
+def remove_from_cart(menu_item_id: int, order_id: Optional[int] = Cookie(None, include_in_schema=False), db: Session = Depends(get_db)):
     """
     Removes an item from the customers cart
     """
+    if not order_id:
+        raise HTTPException(status_code=400, detail="No active order found")
+        
     return customer_services.remove_item_from_cart(
         db=db, 
         order_id=order_id,
@@ -64,10 +72,13 @@ def remove_from_cart(order_id: int, menu_item_id: int, db: Session = Depends(get
 
 
 @router.post("/choose-order-type")
-def choose_order_type(order_id: int, type: OrderType, db: Session = Depends(get_db)):
+def choose_order_type(type: OrderType, order_id: Optional[int] = Cookie(None, include_in_schema=False), db: Session = Depends(get_db)):
     """
     Specify if order is takeout, etc
     """
+    if not order_id:
+        raise HTTPException(status_code=400, detail="No active order found")
+        
     return customer_services.choose_order_type(
         type=type,
         order_id=order_id,
@@ -76,14 +87,18 @@ def choose_order_type(order_id: int, type: OrderType, db: Session = Depends(get_
     
 
 @router.post("/add-customer-information", response_model=order_schema.Order)
-def add_customer_information(order_id: int, customer_name: str, 
+def add_customer_information(customer_name: str, 
                            customer_email: Optional[str] = None,
                            customer_phone: Optional[int] = None,
                            customer_address: Optional[str] = None,
+                           order_id: Optional[int] = Cookie(None, include_in_schema=False),
                            db: Session = Depends(get_db)):
     """
     Add customer information to an order
     """
+    if not order_id:
+        raise HTTPException(status_code=400, detail="No active order found")
+        
     return customer_services.add_customer_information(
         db=db,
         order_id=order_id,
@@ -95,12 +110,17 @@ def add_customer_information(order_id: int, customer_name: str,
 
 
 @router.post("/add-payment", response_model=payment_schema.Payment)
-def add_payment_method(order_id: int, payment_type: payment_schema.PaymentType,
-                       card_number: Optional[str] = None, db: Session = Depends(get_db)):
+def add_payment_method(payment_type: payment_schema.PaymentType,
+                       card_number: Optional[str] = None, 
+                       order_id: Optional[int] = Cookie(None, include_in_schema=False),
+                       db: Session = Depends(get_db)):
     """
     Add payment to an order
     card_number is optional and only used for card payments
     """
+    if not order_id:
+        raise HTTPException(status_code=400, detail="No active order found")
+        
     return customer_services.add_payment_method(
         db=db,
         order_id=order_id,
@@ -110,11 +130,16 @@ def add_payment_method(order_id: int, payment_type: payment_schema.PaymentType,
 
 
 @router.post("/add-promo-code-to-order", response_model=order_schema.Order)
-def add_promo_code_to_order(order_id: int, promo_code: str, db: Session = Depends(get_db)):
+def add_promo_code_to_order(promo_code: str, 
+                           order_id: Optional[int] = Cookie(None, include_in_schema=False),
+                           db: Session = Depends(get_db)):
     """
     Add a promo code to an order
     """
-    return customer_services.add_promo_code(
+    if not order_id:
+        raise HTTPException(status_code=400, detail="No active order found")
+        
+    return customer_services.apply_promo_code(
         db=db,
         order_id=order_id,
         promo_code=promo_code
@@ -122,11 +147,14 @@ def add_promo_code_to_order(order_id: int, promo_code: str, db: Session = Depend
 
 
 @router.post("/checkout")
-def checkout(order_id: int,
-                       db: Session = Depends(get_db)):
+def checkout(order_id: Optional[int] = Cookie(None, include_in_schema=False),
+             db: Session = Depends(get_db)):
     """
     Send the order to the restaurant.
     """
+    if not order_id:
+        raise HTTPException(status_code=400, detail="No active order found")
+        
     return customer_services.checkout(
         db=db,
         order_id=order_id

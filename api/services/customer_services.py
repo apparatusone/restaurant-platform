@@ -143,7 +143,10 @@ def add_to_cart(db: Session, menu_item_id: int, quantity: int, customer_id: Opti
         existing_item.amount = new_total_quantity
         db.commit()
         db.refresh(existing_item)
-        return existing_item
+        return {
+            "order_detail": existing_item,
+            "order_id": order_id
+        }
     else:
         # Add a new menu item
         if quantity > max_possible:
@@ -158,7 +161,11 @@ def add_to_cart(db: Session, menu_item_id: int, quantity: int, customer_id: Opti
             menu_item_id=menu_item_id,
             amount=quantity
         )
-        return order_detail_controller.create(db=db, request=order_detail_request)
+        order_detail = order_detail_controller.create(db=db, request=order_detail_request)
+        return {
+            "order_detail": order_detail,
+            "order_id": order_id
+        }
 
 
 def remove_item_from_cart(db: Session, order_id: int, menu_item_id: int):
@@ -418,7 +425,7 @@ def checkout(db: Session, order_id: int):
 
     # Update (deduct) raw ingredients
     if not update_raw_ingredients(db, order_id):
-        raise HTTPException(status_code=500, detail="Failed to update stock quantities")
+        raise HTTPException(status_code=500, detail="Failed to update stock")
     
     # Update menu if insufficient ingredients 
     # Send to kitchen 
