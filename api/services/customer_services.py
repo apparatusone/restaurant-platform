@@ -424,3 +424,14 @@ def checkout(db: Session, order_id: int):
     # Send to kitchen 
     
     return round(total, 2)
+
+
+def choose_order_type(db: Session, order_id: int, type):
+    """
+    Update the order type (dine_in, takeout, delivery)
+    """
+    from ..schemas.orders import OrderUpdate
+    from ..controllers import orders as order_controller
+    
+    order_update = OrderUpdate(order_type=type)
+    return order_controller.update(db=db, request=order_update, item_id=order_id)

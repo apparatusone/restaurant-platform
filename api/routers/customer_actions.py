@@ -11,6 +11,7 @@ from ..controllers import payment_method as payment_controller
 from ..controllers import customers as customer_controller
 from ..controllers import orders as order_controller
 from ..dependencies.database import get_db
+from ..schemas.orders import OrderType
 
 router = APIRouter(
     tags=['Customer Actions'],
@@ -49,6 +50,7 @@ def add_to_cart(menu_item_id: int, quantity: int,
         order_id=order_id
     )
 
+
 @router.delete("/remove-from-cart")
 def remove_from_cart(order_id: int, menu_item_id: int, db: Session = Depends(get_db)):
     """
@@ -58,6 +60,18 @@ def remove_from_cart(order_id: int, menu_item_id: int, db: Session = Depends(get
         db=db, 
         order_id=order_id,
         menu_item_id=menu_item_id
+    )
+
+
+@router.post("/choose-order-type")
+def choose_order_type(order_id: int, type: OrderType, db: Session = Depends(get_db)):
+    """
+    Specify if order is takeout, etc
+    """
+    return customer_services.choose_order_type(
+        type=type,
+        order_id=order_id,
+        db=db
     )
     
 
