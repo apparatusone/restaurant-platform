@@ -1,9 +1,14 @@
 from sqlalchemy.orm import Session
 from enum import Enum
 
-class SortOptions(str, Enum):
+class ValueSort(str, Enum):
     LOW = "low"
     HIGH = "high"
+
+
+class TimeSort(str, Enum):
+    NEWEST = "newest"
+    OLDEST = "oldest"
 
 
 class TimeRange(str, Enum):
@@ -68,7 +73,7 @@ def get_dish_analytics_average_rating(db: Session, time_range: TimeRange = TimeR
 
 def get_dish_analytics_popularity(db: Session, 
                                   time_range: TimeRange = TimeRange.WEEK, 
-                                  sort_by: SortOptions = SortOptions.LOW
+                                  sort_by: ValueSort = ValueSort.LOW
                                   ):
     """
     Get a list of menu items and their order count in the selected time range
@@ -78,10 +83,9 @@ def get_dish_analytics_popularity(db: Session,
     from ..models.orders import Order
     from ..models.order_details import OrderDetail
     
-    # Sum total quantity ordered for each menu item (sum of amounts)
+    # sum total quantity
     order_count = func.sum(OrderDetail.amount).label("order_count")
     
-    # Start with all menu items as base
     query = (
         db.query(
             MenuItem.name.label("dish_name"),
@@ -92,13 +96,13 @@ def get_dish_analytics_popularity(db: Session,
         .group_by(MenuItem.id, MenuItem.name)
     )
     
-    # Apply time filter directly to the main query
+    # time filter
     query = filter_by_time_range(query, time_range, Order.order_date)
     
-    # sort (MySQL compatible)
-    if sort_by == SortOptions.LOW:
+    # sort
+    if sort_by == ValueSort.LOW:
         query = query.order_by(order_count)
-    elif sort_by == SortOptions.HIGH:
+    elif sort_by == ValueSort.HIGH:
         query = query.order_by(order_count.desc())
     
     rows = query.all()
@@ -110,6 +114,35 @@ def get_dish_analytics_popularity(db: Session,
         }
         for dish_name, count in rows
     ]
+
+def view_reviews(db: Session, sort_by: TimeSort):
+    """
+    Get all reviews sorted by date
+    """
+    from ..models.reviews import Reviews
+    from ..models.menu_items import MenuItem
+    
+    # get all reviews with menu item information
+    query = db.query(Reviews).join(MenuItem, Reviews.menu_item_id == MenuItem.id)
+    
+    # sort by date
+    if sort_by == TimeSort.NEWEST:
+        query = query.order_by(Reviews.created_at)
+    else:
+        query = query.order_by(Reviews.created_at.desc())
+    
+    reviews = query.all()
+    
+    return [
+        {
+            "menu_item_name": review.menu_item.name,
+            "rating": review.rating,
+            "text": review.review_text,
+            "date": review.created_at
+        }
+        for review in reviews
+    ]
+
 
 # get review, with item name, sort by  (newest or oldest)
 # filter by rating (1-5, all)
