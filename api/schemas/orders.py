@@ -43,6 +43,7 @@ class OrderUpdate(BaseModel):
     promo_id: Optional[int] = None
     paid: Optional[bool] = None
     tracking_number: Optional[str] = None
+    order_date: Optional[datetime] = None
 
 
 class Order(OrderBase):

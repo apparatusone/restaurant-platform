@@ -335,7 +335,7 @@ def process_payment(db: Session, order: Order):
         "transaction_id": "txn_ABC123456789"
     }
 
-    if order.payment != PaymentType.CASH:
+    if order.payment.payment_type != PaymentType.CASH:
         # "send " payment to processor
         # wait for a response
         response = example_response
@@ -383,7 +383,7 @@ def update_raw_ingredients(db: Session, order_id: int):
                 if resource.amount < total_needed:
                     raise HTTPException(
                         status_code=400, 
-                        detail=f"Insufficient {resource.item} inventory. Need {total_needed}, have {resource.quantity}"
+                        detail=f"Insufficient {resource.item} inventory. Need {total_needed}, have {resource.amount}"
                     )
                 
                 resource.amount -= total_needed
@@ -416,6 +416,10 @@ def checkout(db: Session, order_id: int, response=None):
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
+    # check if the order has payment
+    if not order.payment:
+        raise HTTPException(status_code=400, detail="No payment method found. Please add a payment method before checkout.")
+
     total = calculate_order_total(db, order_id)
     print("original total: ", total)
     
@@ -430,29 +434,38 @@ def checkout(db: Session, order_id: int, response=None):
     # Apply tax
     TAX = 0.0475
     total = total * (1 + TAX)
-
+    
     # process the payment
     payment_result = process_payment(db, order)
     
     #change order status to paid
-    order_update = OrderUpdate(paid=True)
-    updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
+    try:
+        order_update = OrderUpdate(paid=True)
+        updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update order payment status: {str(e)}")
 
     # Change order to in progress
-    order_update = OrderUpdate(status=StatusType.IN_PROGRESS)
-    updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
+    try:
+        order_update = OrderUpdate(status=StatusType.IN_PROGRESS)
+        updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update order status to in progress: {str(e)}")
 
     # Update (deduct) raw ingredients
     if not update_raw_ingredients(db, order_id):
         raise HTTPException(status_code=500, detail="Failed to update stock")
 
+    # the "order date" and time need to be updated at checkout
+    try:
+        order_update = OrderUpdate(order_date=datetime.now())
+        order_controller.update(db=db, request=order_update, item_id=order_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update order date: {str(e)}")
+
     # Clear the browser cookie after successful checkout
     if response:
         response.delete_cookie(key="order_id")
-
-    # the "order date" and time need to be updated at checkout
-    order_update = OrderUpdate(order_date=datetime.now())
-    order_controller.update(db=db, request=order_update, item_id=order_id)
     
     # Update menu if insufficient ingredients 
     # Send to kitchen (print ticket)
@@ -470,10 +483,13 @@ def checkout(db: Session, order_id: int, response=None):
                 tracking_number = generate_tracking_number()
             
             # update the order with the tracking number
-            order_update = OrderUpdate(tracking_number=tracking_number)
-            updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
-            # Refresh the order object to get the updated tracking number
-            db.refresh(order)
+            try:
+                order_update = OrderUpdate(tracking_number=tracking_number)
+                updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
+                # Refresh the order object to get the updated tracking number
+                db.refresh(order)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to update tracking number: {str(e)}")
         else:
             tracking_number = order.tracking_number
     
