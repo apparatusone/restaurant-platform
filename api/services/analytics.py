@@ -2,10 +2,8 @@ from sqlalchemy.orm import Session
 from enum import Enum
 
 class SortOptions(str, Enum):
-    RATING = "rating"
-    POPULARITY = "popularity"
-    NEWEST_REVIEW = "newest review"
-    OLDES_REVIEW = "oldest review"
+    LOW = "low"
+    HIGH = "high"
 
 
 class TimeRange(str, Enum):
@@ -42,7 +40,7 @@ def get_dish_analytics_average_rating(db: Session, time_range: TimeRange = TimeR
     from ..models.menu_items import MenuItem
     from ..models.reviews import Reviews
 
-    # get the filtered reviews subquery
+    # get the filtered reviews
     reviews_query = db.query(Reviews)
     filtered_reviews = filter_by_time_range(reviews_query, time_range, Reviews.created_at).subquery()
     
@@ -68,6 +66,50 @@ def get_dish_analytics_average_rating(db: Session, time_range: TimeRange = TimeR
         for dish_name, avg in rows
     ]
 
+def get_dish_analytics_popularity(db: Session, 
+                                  time_range: TimeRange = TimeRange.WEEK, 
+                                  sort_by: SortOptions = SortOptions.LOW
+                                  ):
+    """
+    Get a list of menu items and their order count in the selected time range
+    """
+    from sqlalchemy import func
+    from ..models.menu_items import MenuItem
+    from ..models.orders import Order
+    from ..models.order_details import OrderDetail
+    
+    # Sum total quantity ordered for each menu item (sum of amounts)
+    order_count = func.sum(OrderDetail.amount).label("order_count")
+    
+    # Start with all menu items as base
+    query = (
+        db.query(
+            MenuItem.name.label("dish_name"),
+            order_count,
+        )
+        .outerjoin(OrderDetail, MenuItem.id == OrderDetail.menu_item_id)
+        .outerjoin(Order, OrderDetail.order_id == Order.id)
+        .group_by(MenuItem.id, MenuItem.name)
+    )
+    
+    # Apply time filter directly to the main query
+    query = filter_by_time_range(query, time_range, Order.order_date)
+    
+    # sort (MySQL compatible)
+    if sort_by == SortOptions.LOW:
+        query = query.order_by(order_count)
+    elif sort_by == SortOptions.HIGH:
+        query = query.order_by(order_count.desc())
+    
+    rows = query.all()
+    
+    return [
+        {
+            "dish_name": dish_name,
+            "order_count": int(count) if count is not None else 0
+        }
+        for dish_name, count in rows
+    ]
 
 # get review, with item name, sort by  (newest or oldest)
 # filter by rating (1-5, all)
