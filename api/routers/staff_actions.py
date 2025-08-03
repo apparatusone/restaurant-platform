@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, FastAPI, status, Response, Path
+from fastapi import APIRouter, Depends, FastAPI, status, Response, Path, Body
 from sqlalchemy.orm import Session
 from datetime import date
 from ..services import staff_services
@@ -76,3 +76,31 @@ def get_orders_by_date_range(start_date: date, end_date: date, db: Session = Dep
     Get orders within a date range (YYYY-MM-DD)
     """
     return staff_services.get_orders_by_date_range(db=db, start_date=start_date, end_date=end_date)
+
+
+@router.post("/add-menu-item")
+def add_menu_item(
+    name: str,
+    price: float,
+    food_category: schema.FoodCategory,
+    calories: int,
+    description: str = None,
+    resources: list[schema.ResourceRequirement] = Body(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Create a new menu item with necessary resources
+    
+    Each field will appear as a separate input box in SwaggerUI except resources
+    """
+    # Create the request object for the service
+    request = schema.MenuItemsCreateWithResources(
+        name=name,
+        price=price,
+        food_category=food_category,
+        calories=calories,
+        description=description,
+        resources=resources
+    )
+    
+    return staff_services.add_menu_item(db=db, request=request)

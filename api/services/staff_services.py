@@ -127,3 +127,56 @@ def update_order_status(db: Session, order_id: int, status: StatusType):
         return updated_order
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update order status: {str(e)}")
+
+
+def add_menu_item(db: Session, request):
+    """
+    Create a new menu item with ingredients and add empty resources
+    """
+    from ..controllers import menu_items as menu_item_controller
+    from ..schemas.menu_items import MenuItemsCreate
+    from ..models.menu_item_ingredients import MenuItemIngredient
+    from ..models.resources import Resource
+    
+    try:
+        # create the menu item
+        menu_item_data = MenuItemsCreate(
+            name=request.name,
+            description=request.description,
+            price=request.price,
+            calories=request.calories,
+            food_category=request.food_category
+        )
+        
+        new_menu_item = menu_item_controller.create(db=db, request=menu_item_data)
+        
+        # process each resource needed
+        for resource_req in request.resources:
+            # check if resource exists by name, create if it doesn't
+            existing_resource = db.query(Resource).filter(Resource.item == resource_req.resource_name).first()
+            if not existing_resource:
+                # create new resource with amount = 0
+                new_resource = Resource(
+                    item=resource_req.resource_name,
+                    amount=0
+                )
+                db.add(new_resource)
+                db.flush()  # Get the ID
+                resource_id = new_resource.id
+            else:
+                resource_id = existing_resource.id
+            
+            # create menu item ingredient relationship
+            menu_item_ingredient = MenuItemIngredient(
+                menu_item_id=new_menu_item.id,
+                resource_id=resource_id,
+                amount=resource_req.quantity
+            )
+            db.add(menu_item_ingredient)
+        
+        db.commit()
+        return new_menu_item
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create menu item: {str(e)}")

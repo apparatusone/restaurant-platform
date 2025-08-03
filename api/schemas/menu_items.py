@@ -19,6 +19,15 @@ class MenuItemsBase(BaseModel):
 class MenuItemsCreate(MenuItemsBase):
     pass
 
+
+class ResourceRequirement(BaseModel):
+    resource_name: str
+    quantity: int
+
+
+class MenuItemsCreateWithResources(MenuItemsBase):
+    resources: list[ResourceRequirement]
+
 class MenuItemsUpdate(BaseModel):
     name: str
     description: Optional[str] = None
