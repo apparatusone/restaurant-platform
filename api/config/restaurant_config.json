@@ -1,0 +1,24 @@
+{
+    "restaurant": {
+        "name": "PIZZA PIZZA"
+    },
+    "contact": {
+        "address": {
+            "street": "9201 University City Blvd",
+            "city": "Charlotte",
+            "state": "NC",
+            "zip_code": "28223",
+            "country": "USA"
+        },
+        "phone": "704-687-7337",
+        "email": "diningservices@charlotte.edu",
+        "website": "https://aux.charlotte.edu/dining/dining/"
+    },
+    "business_settings": {
+        "tax_rate": 0.0725,
+        "service_charge_rate": 0.18,
+        "currency": "USD",
+        "currency_symbol": "$",
+        "timezone": "America/New_York"
+    }
+}
