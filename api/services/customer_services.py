@@ -410,6 +410,7 @@ def checkout(db: Session, order_id: int, response=None):
     from fastapi import HTTPException
     from ..schemas.orders import StatusType
     from ..schemas.orders import OrderUpdate
+    from ..config.restaurant import TAX_RATE
 
     # Get the order
     order = db.query(Order).filter(Order.id == order_id).first()
@@ -432,8 +433,7 @@ def checkout(db: Session, order_id: int, response=None):
             print(f"Applied {promotion.discount_percent}% discount: -{discount_amount}")
 
     # Apply tax
-    TAX = 0.0475
-    total = total * (1 + TAX)
+    total = total * (1 + TAX_RATE)
     
     # process the payment
     payment_result = process_payment(db, order)

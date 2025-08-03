@@ -1,3 +1,3 @@
-from .restaurant import restaurant_config, RestaurantConfig
+from .restaurant import CONFIG, RESTAURANT_NAME, TAX_RATE, CURRENCY_SYMBOL, ADDRESS, PHONE, EMAIL, get_config
 
-__all__ = ['restaurant_config', 'RestaurantConfig']
+__all__ = ['CONFIG', 'RESTAURANT_NAME', 'TAX_RATE', 'CURRENCY_SYMBOL', 'ADDRESS', 'PHONE', 'EMAIL', 'get_config']
