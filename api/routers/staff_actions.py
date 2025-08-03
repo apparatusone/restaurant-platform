@@ -14,7 +14,7 @@ router = APIRouter(
     prefix="/staff_actions",
 )
 
-@router.get("view-ingredients")
+@router.get("/view-ingredients")
 def view_ingredients(menu_item_id: int, quantity: int, db: Session = Depends(get_db)):
     return staff_services.get_required_ingredients(db, menu_item_id, quantity)
 
@@ -90,10 +90,8 @@ def add_menu_item(
 ):
     """
     Create a new menu item with necessary resources
-    
-    Each field will appear as a separate input box in SwaggerUI except resources
     """
-    # Create the request object for the service
+    # create the request object for the service
     request = schema.MenuItemsCreateWithResources(
         name=name,
         price=price,

@@ -18,7 +18,9 @@ from ..controllers import customers as customer_controller
 from ..schemas.payment_method import PaymentType
 from ..models.order_details import OrderDetail
 from ..models.menu_items import MenuItem
+from .print_services import print_receipt
 from ..models.orders import Order
+
 from decimal import Decimal
 from enum import Enum
 
@@ -156,7 +158,7 @@ def add_to_cart(db: Session, menu_item_id: int, quantity: int, customer_id: Opti
         db.commit()
         db.refresh(existing_item)
         return {
-            "order_detail": existing_item,
+            "message": f"Updated {menu_item.name} in the cart",
             "order_id": order_id
         }
     else:
@@ -175,7 +177,7 @@ def add_to_cart(db: Session, menu_item_id: int, quantity: int, customer_id: Opti
         )
         order_detail = order_detail_controller.create(db=db, request=order_detail_request)
         return {
-            "order_detail": order_detail,
+            "message": f"{menu_item.name} added to cart",
             "order_id": order_id
         }
 
@@ -421,19 +423,20 @@ def checkout(db: Session, order_id: int, response=None):
     if not order.payment:
         raise HTTPException(status_code=400, detail="No payment method found. Please add a payment method before checkout.")
 
-    total = calculate_order_total(db, order_id)
-    print("original total: ", total)
+    subtotal = calculate_order_total(db, order_id)
+    print("original subtotal: ", subtotal)
     
     # Apply any promotion
     if order.promo_id:
         promotion = db.query(Promotion).filter(Promotion.id == order.promo_id).first()
         if promotion:
-            discount_amount = total * (promotion.discount_percent / 100)
-            total = total - discount_amount
+            discount_amount = subtotal * (promotion.discount_percent / 100)
+            subtotal = subtotal - discount_amount
             print(f"Applied {promotion.discount_percent}% discount: -{discount_amount}")
 
-    # Apply tax
-    total = total * (1 + TAX_RATE)
+    # Calculate tax and total
+    tax = subtotal * TAX_RATE
+    total = subtotal + tax
     
     # process the payment
     payment_result = process_payment(db, order)
@@ -469,6 +472,17 @@ def checkout(db: Session, order_id: int, response=None):
     
     # Update menu if insufficient ingredients 
     # Send to kitchen (print ticket)
+
+    # handle receipt based on order type
+    try:
+        if order.order_type.value in ["dine_in", "takeout"]:
+            print_receipt(order_id, subtotal=subtotal, tax=tax, total=total)
+        elif order.order_type.value == "delivery":
+            # Send email receipt for delivery orders
+            # TODO: Implement email receipt functionality
+            print(f"Email receipt should be sent for delivery order {order_id}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process receipt: {str(e)}") 
 
     # if takeout or delivery provide tracking number
     tracking_number = None
