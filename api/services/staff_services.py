@@ -180,3 +180,49 @@ def add_menu_item(db: Session, request):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to create menu item: {str(e)}")
+
+
+def update_stock(db: Session, resource_name: str, amount_change: int):
+    """
+    Add or remove stock for a resource
+    """
+    from ..models.resources import Resource
+    
+    try:
+        # find the resource by name
+        resource = db.query(Resource).filter(Resource.item == resource_name).first()
+        
+        if not resource:
+            raise HTTPException(status_code=404, detail=f"Resource '{resource_name}' not found")
+        
+        # handle zero change
+        if amount_change == 0:
+            return {
+                "message": f"No change made to {resource_name} stock"
+            }
+        
+        # calc the new stock amount
+        new_amount = resource.amount + amount_change
+        
+        # prevent negative stock
+        if new_amount < 0:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Cannot reduce stock below 0. Current: {resource.amount}, Requested change: {amount_change}"
+            )
+        
+        # update the stock quantity
+        resource.amount = new_amount
+        db.commit()
+        
+        return {
+            "previous_amount": resource.amount - amount_change,
+            "new_amount": resource.amount,
+            "message": f"Stock updated for {resource_name}"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update stock: {str(e)}")

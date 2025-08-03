@@ -104,3 +104,17 @@ def add_menu_item(
     )
     
     return staff_services.add_menu_item(db=db, request=request)
+
+
+@router.put("/update-stock")
+def update_stock(
+    resource_name: str,
+    amount_change: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Add or remove stock
+    
+    Use positive numbers to add stock, negative numbers to remove stock
+    """
+    return staff_services.update_stock(db=db, resource_name=resource_name, amount_change=amount_change)
