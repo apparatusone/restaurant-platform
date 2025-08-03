@@ -15,22 +15,21 @@ class TimeRange(str, Enum):
     ALL_TIME = "all time"
 
 
-def filter_by_time_range(query, time_range: TimeRange):
+def filter_by_time_range(query, time_range: TimeRange, date_field):
     """
-    Filter the query by the specified time range
+    Filter the by the time range
     """
     from datetime import datetime, timedelta
-    from ..models.reviews import Reviews
     
     if time_range == TimeRange.WEEK:
         start_date = datetime.now() - timedelta(days=7)
-        return query.filter(Reviews.created_at >= start_date)
+        return query.filter(date_field >= start_date)
     elif time_range == TimeRange.MONTH:
         start_date = datetime.now() - timedelta(days=30)
-        return query.filter(Reviews.created_at >= start_date)
+        return query.filter(date_field >= start_date)
     elif time_range == TimeRange.YEAR:
         start_date = datetime.now() - timedelta(days=365)
-        return query.filter(Reviews.created_at >= start_date)
+        return query.filter(date_field >= start_date)
     elif time_range == TimeRange.ALL_TIME:
         return query  # No filter for all time
 
@@ -43,10 +42,11 @@ def get_dish_analytics_average_rating(db: Session, time_range: TimeRange = TimeR
     from ..models.menu_items import MenuItem
     from ..models.reviews import Reviews
 
-    # First, get the filtered reviews subquery
+    # get the filtered reviews subquery
     reviews_query = db.query(Reviews)
-    filtered_reviews = filter_by_time_range(reviews_query, time_range).subquery()
+    filtered_reviews = filter_by_time_range(reviews_query, time_range, Reviews.created_at).subquery()
     
+    # calc average rating
     avg_rating = func.avg(cast(filtered_reviews.c.rating, Float)).label("avg_rating")
     
     rows = (
