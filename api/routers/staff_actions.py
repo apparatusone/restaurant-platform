@@ -14,7 +14,7 @@ router = APIRouter(
     prefix="/staff_actions",
 )
 
-@router.get("/")
+@router.get("view-ingredients")
 def view_ingredients(menu_item_id: int, quantity: int, db: Session = Depends(get_db)):
     return staff_services.get_required_ingredients(db, menu_item_id, quantity)
 
@@ -60,6 +60,14 @@ def get_orders_by_status(status: StatusType, db: Session = Depends(get_db)):
     Get orders filtered by status
     """
     return staff_services.get_orders_by_status(db=db, status=status)
+
+
+@router.put("/orders/{order_id}/status")
+def update_order_status(order_id: int, status: StatusType, db: Session = Depends(get_db)):
+    """
+    Update the status of an order
+    """
+    return staff_services.update_order_status(db=db, order_id=order_id, status=status)
 
 
 @router.get("/orders/date-range")

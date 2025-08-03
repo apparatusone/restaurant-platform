@@ -10,6 +10,7 @@ from api.models.payment_method import Payment, PaymentStatus
 from api.models.orders import Order, StatusType
 from api.models.reviews import Reviews
 from api.models.menu_items import MenuItem
+from .analytics import ValueSort
     
 
 # this function gets and returns the ingredients needed for a particular menu item
@@ -105,3 +106,24 @@ def get_orders_by_date_range(db: Session, start_date: date, end_date: date):
     ).filter(
         func.date(Order.order_date) <= end_date
     ).all()
+
+
+def update_order_status(db: Session, order_id: int, status: StatusType):
+    """
+    Update the status of an order
+    """
+    from ..controllers import orders as order_controller
+    from ..schemas.orders import OrderUpdate
+    
+    # check if order exists
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # update the order status
+    try:
+        order_update = OrderUpdate(status=status)
+        updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
+        return updated_order
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update order status: {str(e)}")
