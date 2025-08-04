@@ -1,52 +1,77 @@
-from fastapi import APIRouter, Depends, status, Response
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from enum import Enum
 from ..dependencies.database import get_db
 
-# holds common actions made by administrators
+# Administrator actions for managing test data and database
 
 class TestDataType(str, Enum):
     CUSTOMERS = "customers"
     FOOD = "food"
-    ORDERS = "orders"
-    PAYMENT_METHOD = "payment_method"
     PROMOTIONS = "promotions"
     REVIEWS = "reviews"
+    ORDERS = "orders"
 
 router = APIRouter(
     tags=['Administrator Actions'],
-    prefix="/administrator_actions",
+    prefix="/admin",
 )
 
 @router.post("/add-test-data/{data_type}")
 def add_test_data(data_type: TestDataType):
     """
-    Add specified test data
+    Add test data to the database.
     """
     try:
         if data_type == TestDataType.CUSTOMERS:
             from scripts.add_test_customers import add_test_customers
             success = add_test_customers()
-            if success:
-                return {"message": "Test customers added successfully"}
-            else:
-                return {"error": "Failed to add test customers"}
-        
+            message = "Test customers added successfully"
+            
         elif data_type == TestDataType.FOOD:
-            from scripts.add_test_food import add_all_test_food
-            add_all_test_food()
-            return {"message": "Test food items added successfully"}
+            from scripts.add_test_food import add_test_food
+            success = add_test_food()
+            message = "Test food items added successfully"
+            
+        elif data_type == TestDataType.PROMOTIONS:
+            from scripts.add_test_promotions import add_test_promotions
+            success = add_test_promotions()
+            message = "Test promotions added successfully"
+            
+        elif data_type == TestDataType.REVIEWS:
+            from scripts.add_test_reviews import add_test_reviews
+            success = add_test_reviews()
+            message = "Test reviews added successfully"
+            
+        elif data_type == TestDataType.ORDERS:
+            from scripts.add_test_orders import add_test_orders
+            success = add_test_orders()
+            message = "Test orders added successfully"
+                    
+        if not success:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Failed to add test {data_type.value}"
+            )
+        return {"message": message}
         
-        else:
-            return {"message": f"Test data for {data_type.value} not implemented yet"}
-    
+    except ImportError as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Test script not found for {data_type.value}: {str(e)}"
+        )
     except Exception as e:
-        return {"error": f"Failed to add test data."}
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error adding test {data_type.value}: {str(e)}"
+        )
 
 
 @router.delete("/purge-db")
 def purge_database(db: Session = Depends(get_db)):
-    # Administrator action to purge all data from the database
+    """
+    This will delete ALL data from the database permanently!
+    """
     try:
         from ..dependencies.database import Base
         
@@ -54,7 +79,11 @@ def purge_database(db: Session = Depends(get_db)):
             db.execute(table.delete())
         
         db.commit()
-        return {"message": "Database purged successfully"}
+        return {"message": "Database purged successfully."}
+        
     except Exception as e:
         db.rollback()
-        return {"error": f"Failed to purge database: {str(e)}"}
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to purge database: {str(e)}"
+        )
