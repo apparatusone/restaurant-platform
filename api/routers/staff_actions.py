@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, FastAPI, status, Response, Path, Body
+from fastapi import APIRouter, Depends, FastAPI, status, Response, Path, Body, Query
 from sqlalchemy.orm import Session
 from datetime import date
 from ..services import staff as staff_services
@@ -35,8 +35,14 @@ def delete_promotion_by_code(promo_code: str, db: Session = Depends(get_db)):
     return staff_services.delete_promotion_by_code(db=db, promo_code=promo_code)
 
 
-@router.get("/revenue/{target_date}")
-def get_daily_revenue(target_date: date, db: Session = Depends(get_db)):
+@router.get("/revenue")
+def get_daily_revenue(
+        target_date: date = Query(
+            default=date.today(),
+            description="Defaults to today's date"
+        ), 
+        db: Session = Depends(get_db)
+):
     """
     Get total revenue for a specific date (YYYY-MM-DD format)
     """
