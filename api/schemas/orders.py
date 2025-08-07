@@ -45,6 +45,7 @@ class OrderUpdate(BaseModel):
     paid: Optional[bool] = None
     tracking_number: Optional[str] = None
     order_date: Optional[datetime] = None
+    final_total: Optional[float] = None
 
 
 class Order(OrderBase):
