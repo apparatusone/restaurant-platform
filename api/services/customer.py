@@ -351,7 +351,7 @@ def add_promo_code(db: Session, order_id: int, promo_code: str):
     order_update = OrderUpdate(promo_id=promo.id)
     updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
     
-    return updated_order
+    return {"message": f"Promo code '{promo_code}' applied successfully"}
 
 
 def calculate_order_total(db: Session, order_id: int) -> float:
