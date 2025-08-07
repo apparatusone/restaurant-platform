@@ -4,6 +4,7 @@ from enum import Enum
 
 
 class TestDataType(str, Enum):
+    ALL = "all"
     CUSTOMERS = "customers"
     FOOD = "food"
     PROMOTIONS = "promotions"
@@ -16,7 +17,27 @@ def add_test_data(data_type: TestDataType):
     Add test data to the database.
     """
     try:
-        if data_type == TestDataType.CUSTOMERS:
+        if data_type == TestDataType.ALL:
+            # add all test data types in order
+            data_types = [
+                TestDataType.CUSTOMERS,
+                TestDataType.FOOD, 
+                TestDataType.PROMOTIONS,
+                TestDataType.REVIEWS,
+                TestDataType.ORDERS
+            ]
+            
+            for data in data_types:
+                result = add_test_data(data)
+                if not result:
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to add test {data.value}"
+                    )
+            
+            return {"message": "All test data added successfully"}
+            
+        elif data_type == TestDataType.CUSTOMERS:
             from scripts.add_test_customers import add_test_customers
             success = add_test_customers()
             message = "Test customers added successfully"
