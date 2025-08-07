@@ -482,7 +482,8 @@ def checkout(db: Session, order_id: int, response=None):
             # TODO: Implement email receipt functionality
             print(f"Email receipt should be sent for delivery order {order_id}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to process receipt: {str(e)}") 
+        # Log the error but don't fail the checkout
+        print(f"Warning: Failed to process receipt for order {order_id}: {str(e)}") 
 
     # if takeout or delivery provide tracking number
     tracking_number = None

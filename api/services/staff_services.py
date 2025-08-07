@@ -157,7 +157,9 @@ def add_menu_item(db: Session, request):
         
         new_menu_item = menu_item_controller.create(db=db, request=menu_item_data)
         
-        # process each resource needed
+        # process each resource needed and track new ones
+        new_resources_added = []
+        
         for resource_req in request.resources:
             # check if resource exists by name, create if it doesn't
             existing_resource = db.query(Resource).filter(Resource.item == resource_req.resource_name).first()
@@ -170,6 +172,7 @@ def add_menu_item(db: Session, request):
                 db.add(new_resource)
                 db.flush()  # Get the ID
                 resource_id = new_resource.id
+                new_resources_added.append(resource_req.resource_name)
             else:
                 resource_id = existing_resource.id
             
@@ -182,7 +185,11 @@ def add_menu_item(db: Session, request):
             db.add(menu_item_ingredient)
         
         db.commit()
-        return new_menu_item
+        
+        return {
+            "menu_item": new_menu_item.name,
+            "resources_added": new_resources_added # only includes new resources
+        }
         
     except Exception as e:
         db.rollback()
