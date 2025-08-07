@@ -449,6 +449,7 @@ def generate_tracking_number():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
 
 
+# TODO: this handles far too much, simplify
 def checkout(db: Session, order_id: int, response=None):
     """
     Process checkout for an order

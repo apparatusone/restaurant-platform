@@ -8,7 +8,7 @@ load_dotenv()
 def process_stripe_payment(amount_cents: int, order_id: int, customer_name: str = None):
     """process payment with stripe test mode"""
     # check if we should use mock mode (no api key given)
-    stripe_key = None
+    stripe_key = os.getenv("STRIPE_API_KEY")
     if not stripe_key:
         # mock payment for testing without stripe account
         import time

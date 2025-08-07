@@ -87,12 +87,18 @@ def purge_database(db: Session):
     """
     try:
         from ..dependencies.database import Base
+        from sqlalchemy import text
         
+        # Delete all data from tables
         for table in reversed(Base.metadata.sorted_tables):
             db.execute(table.delete())
         
+        # reset auto-increment IDs
+        for table in Base.metadata.sorted_tables:
+            db.execute(text(f"ALTER TABLE {table.name} AUTO_INCREMENT = 1"))
+        
         db.commit()
-        return {"message": "Database purged successfully."}
+        return {"message": "Database purged and IDs reset successfully."}
         
     except Exception as e:
         db.rollback()
