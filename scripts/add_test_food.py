@@ -71,7 +71,7 @@ MAIN_DISHES = [
         "description": "Ham, pineapple, and extra cheese",
         "price": 13.99,
         "calories": 280,
-        "food_category": FoodCategory.REGULAR,
+        "food_category": FoodCategory.VEGETARIAN,
         "ingredients": [
             ("Pizza Dough", 1),
             ("Pizza Sauce", 3),
@@ -89,7 +89,7 @@ SIDE_ITEMS = [
         "description": "Small cup of ranch dressing",
         "price": 0.25,
         "calories": 120,
-        "food_category": FoodCategory.REGULAR,
+        "food_category": FoodCategory.VEGETARIAN,
         "ingredients": [
             ("Ranch Dressing", 1)
         ]
@@ -99,7 +99,7 @@ SIDE_ITEMS = [
         "description": "Fresh lettuce, tomatoes, red onions, and green peppers",
         "price": 6.99,
         "calories": 70,
-        "food_category": FoodCategory.REGULAR,
+        "food_category": FoodCategory.VEGETARIAN,
         "ingredients": [
             ("Mixed Lettuce", 3),
             ("Tomatoes", 2),
@@ -131,7 +131,7 @@ BEVERAGES = [
         "description": "12oz Coca-Cola bottle",
         "price": 2.50,
         "calories": 140,
-        "food_category": FoodCategory.REGULAR,
+        "food_category": FoodCategory.VEGAN,
         "ingredients": [
             ("Coke Bottle", 1) # direct inventory?
         ]
@@ -141,7 +141,7 @@ BEVERAGES = [
         "description": "16oz bottled water",
         "price": 1.99,
         "calories": 0,
-        "food_category": FoodCategory.REGULAR,
+        "food_category": FoodCategory.VEGAN,
         "ingredients": [
             ("Water Bottle", 1)
         ]
