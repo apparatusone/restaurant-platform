@@ -66,6 +66,20 @@ def read_one(db: Session, item_id):
     return item
 
 
+def update(db: Session, item_id, request):
+    try:
+        item = db.query(model.Payment).filter(model.Payment.id == item_id)
+        if not item.first():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Id not found!")
+        update_data = request.dict(exclude_unset=True)
+        item.update(update_data, synchronize_session=False)
+        db.commit()
+    except SQLAlchemyError as e:
+        error = str(e.__dict__['orig'])
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+    return item.first()
+
+
 def delete(db: Session, item_id):
     try:
         item = db.query(model.Payment).filter(model.Payment.id == item_id)

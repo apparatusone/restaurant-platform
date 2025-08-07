@@ -26,6 +26,13 @@ class PaymentCreate(PaymentBase):
     pass
 
 
+class PaymentUpdate(BaseModel):
+    order_id: int
+    payment_type: PaymentType = None
+    status: PaymentStatus = None
+    card_number: Optional[str] = None
+
+
 class Payment(PaymentBase):
     id: int
     payment_date: datetime
