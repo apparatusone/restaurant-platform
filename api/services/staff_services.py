@@ -101,6 +101,13 @@ def get_orders_by_date_range(db: Session, start_date: date, end_date: date):
     """
     Get orders within a date range
     """
+    # Validate that start_date is not after end_date
+    if start_date > end_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Start date cannot be after end date"
+        )
+    
     return db.query(Order).filter(
         func.date(Order.order_date) >= start_date
     ).filter(
