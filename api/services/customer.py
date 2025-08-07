@@ -80,10 +80,13 @@ def can_order_be_made(db: Session, order_id: int):
 
 
 def get_menu(db: Session, filter_category: Optional[FilterCategory] = None):
-    # Apply filter
     query = db.query(MenuItem)
     if filter_category:
-        query = query.filter(MenuItem.food_category == filter_category.value)
+        if filter_category == FilterCategory.VEGETARIAN:
+            # vegetarian includes both vegetarian and vegan items
+            query = query.filter(MenuItem.food_category.in_(['vegetarian', 'vegan']))
+        else:
+            query = query.filter(MenuItem.food_category == filter_category.value)
     
     all_menu_items = query.all()
     available_items = []
