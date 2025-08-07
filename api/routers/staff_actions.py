@@ -91,7 +91,6 @@ def add_menu_item(
     """
     Create a new menu item with necessary resources
     """
-    # create the request object for the service
     request = schema.MenuItemsCreateWithResources(
         name=name,
         price=price,

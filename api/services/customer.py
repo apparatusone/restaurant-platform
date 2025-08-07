@@ -30,6 +30,55 @@ class FilterCategory(str, Enum):
     GLUTEN_FREE = "gluten_free"
     REGULAR = "regular"
 
+
+def can_order_be_made(db: Session, order_id: int):
+    """
+    check if an order can be made based on current resource availability.
+    returns true/false
+    returns insufficient resources
+    """
+    # Get all order details for this order
+    order_details = db.query(OrderDetail).filter(OrderDetail.order_id == order_id).all()
+    
+    if not order_details:
+        return True, "Order is empty"
+    
+    total_ingredient_needs = {}
+    
+    for order_detail in order_details:
+        # get required ingredients
+        ingredients = db.query(MenuItemIngredient).filter(
+            MenuItemIngredient.menu_item_id == order_detail.menu_item_id
+        ).all()
+        
+        for ingredient in ingredients:
+            resource_id = ingredient.resource_id
+            needed_amount = ingredient.amount * order_detail.amount
+            
+            if resource_id in total_ingredient_needs:
+                total_ingredient_needs[resource_id] += needed_amount
+            else:
+                total_ingredient_needs[resource_id] = needed_amount
+    
+    missing_ingredients = []
+    
+    for resource_id, needed_amount in total_ingredient_needs.items():
+        resource = db.query(Resource).filter(Resource.id == resource_id).first()
+        
+        if not resource or resource.amount < needed_amount:
+            available = resource.amount if resource else 0
+            missing_ingredients.append({
+                "resource_name": resource.item if resource else "Unknown",
+                "needed": needed_amount,
+                "available": available
+            })
+    
+    if missing_ingredients:
+        return False, missing_ingredients
+    
+    return True, "Order can be made"
+
+
 def get_menu(db: Session, filter_category: Optional[FilterCategory] = None):
     # Apply filter
     query = db.query(MenuItem)
@@ -326,6 +375,7 @@ def process_payment(db: Session, order: Order):
     # get payment info from the order id
     from ..models.payment_method import Payment
     from ..schemas.payment_method import PaymentType
+    import time
     
     payment = order.payment
     if not payment:
@@ -339,7 +389,8 @@ def process_payment(db: Session, order: Order):
 
     if order.payment.payment_type != PaymentType.CASH:
         # "send " payment to processor
-        # wait for a response
+        # simulate waiting for a response
+        time.sleep(1)
         response = example_response
 
          # handle response
@@ -362,12 +413,10 @@ def update_raw_ingredients(db: Session, order_id: int):
     if not order_details:
         raise HTTPException(status_code=404, detail="No items found in order")
     
-    # For each menu item in the order
     for detail in order_details:
         menu_item_id = detail.menu_item_id
         quantity_ordered = detail.amount
         
-        # Get required ingredients for this menu item
         required_ingredients = db.query(MenuItemIngredient).filter(
             MenuItemIngredient.menu_item_id == menu_item_id
         ).all()
@@ -377,11 +426,8 @@ def update_raw_ingredients(db: Session, order_id: int):
             resource = db.query(Resource).filter(Resource.id == ingredient.resource_id).first()
             
             if resource:
-                # Calculate total amount needed (ingredient amount * quantity ordered)
                 total_needed = ingredient.amount * quantity_ordered
                 
-                # if 2 customers are ordering at the same time, the may be able to add
-                # an item when there are insufficient resources
                 if resource.amount < total_needed:
                     raise HTTPException(
                         status_code=400, 
@@ -390,7 +436,6 @@ def update_raw_ingredients(db: Session, order_id: int):
                 
                 resource.amount -= total_needed
     
-    # Commit all changes
     db.commit()
     return True
 
@@ -419,6 +464,16 @@ def checkout(db: Session, order_id: int, response=None):
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
+    # first check if the order can be made (has enough ingredients)
+    # this is a second check if 2 customers are ordering at the same time
+    can_be_made, details = can_order_be_made(db, order_id)
+    if not can_be_made:
+        missing_items = ", ".join([f"{item['resource_name']} (need {item['shortage']} more)" for item in details])
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Order cannot be completed due to insufficient ingredients: {missing_items}"
+        )
+
     # check if the order has payment
     if not order.payment:
         raise HTTPException(status_code=400, detail="No payment method found. Please add a payment method before checkout.")
@@ -426,13 +481,12 @@ def checkout(db: Session, order_id: int, response=None):
     subtotal = calculate_order_total(db, order_id)
     print("original subtotal: ", subtotal)
     
-    # Apply any promotion
+    # apply any promotion
     if order.promo_id:
         promotion = db.query(Promotion).filter(Promotion.id == order.promo_id).first()
         if promotion:
             discount_amount = subtotal * (promotion.discount_percent / 100)
             subtotal = subtotal - discount_amount
-            print(f"Applied {promotion.discount_percent}% discount: -{discount_amount}")
 
     # Calculate tax and total
     tax = subtotal * TAX_RATE
@@ -441,21 +495,21 @@ def checkout(db: Session, order_id: int, response=None):
     # process the payment
     payment_result = process_payment(db, order)
     
-    #change order status to paid
+    # change order to paid
     try:
         order_update = OrderUpdate(paid=True)
         updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update order payment status: {str(e)}")
 
-    # Change order to in progress
+    # change order status
     try:
         order_update = OrderUpdate(status=StatusType.IN_PROGRESS)
         updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update order status to in progress: {str(e)}")
 
-    # Update (deduct) raw ingredients
+    # update resources
     if not update_raw_ingredients(db, order_id):
         raise HTTPException(status_code=500, detail="Failed to update stock")
 
@@ -466,11 +520,10 @@ def checkout(db: Session, order_id: int, response=None):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update order date: {str(e)}")
 
-    # Clear the browser cookie after successful checkout
+    # clear the browser cookie after successful checkout
     if response:
         response.delete_cookie(key="order_id")
     
-    # Update menu if insufficient ingredients 
     # Send to kitchen (print ticket)
 
     # handle receipt based on order type
@@ -501,7 +554,6 @@ def checkout(db: Session, order_id: int, response=None):
             try:
                 order_update = OrderUpdate(tracking_number=tracking_number)
                 updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
-                # Refresh the order object to get the updated tracking number
                 db.refresh(order)
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"Failed to update tracking number: {str(e)}")
