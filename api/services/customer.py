@@ -159,7 +159,6 @@ def add_to_cart(db: Session, menu_item_id: int, quantity: int, customer_id: Opti
         # Check if the order from cookie still exists
         existing_order = db.query(Order).filter(Order.id == order_id).first()
         if not existing_order:
-            # Order doesn't exist anymore, create a new one
             order_id = None
     
     if order_id is None:
@@ -183,21 +182,19 @@ def add_to_cart(db: Session, menu_item_id: int, quantity: int, customer_id: Opti
     
     max_possible = float('inf')
     
-    # Calculate how many can be made
+    # calculate how many can be made
     for ingredient in required_ingredients:
         resource = db.query(Resource).filter(Resource.id == ingredient.resource_id).first()
         if resource:
             possible_quantity = resource.amount // ingredient.amount
             max_possible = min(max_possible, possible_quantity)
     
-    # Check if item already exists in cart
     existing_item = db.query(OrderDetail).filter(
         OrderDetail.order_id == order_id,
         OrderDetail.menu_item_id == menu_item_id
     ).first()
     
     if existing_item:
-        # Item exists, check if new total quantity is available
         new_total_quantity = existing_item.amount + quantity
         if new_total_quantity > max_possible:
             raise HTTPException(
@@ -205,7 +202,7 @@ def add_to_cart(db: Session, menu_item_id: int, quantity: int, customer_id: Opti
                 detail=f"Cannot add {quantity} {menu_item.name}, max is {max_possible} (you currently have {existing_item.amount} in cart)"
             )
         
-        # Update the cart
+        # update the cart
         existing_item.amount = new_total_quantity
         db.commit()
         db.refresh(existing_item)
@@ -214,24 +211,31 @@ def add_to_cart(db: Session, menu_item_id: int, quantity: int, customer_id: Opti
             "order_id": order_id
         }
     else:
-        # Add a new menu item
         if quantity > max_possible:
             raise HTTPException(
                 status_code=400, 
                 detail=f"Cannot add {quantity} {menu_item.name}, max is {max_possible}"
             )
         
-        # Add new item to the order
+        # add new item to the order
         order_detail_request = order_detail_schema.OrderDetailCreate(
             order_id=order_id,
             menu_item_id=menu_item_id,
             amount=quantity
         )
         order_detail = order_detail_controller.create(db=db, request=order_detail_request)
-        return {
-            "message": f"{menu_item.name} added to cart",
-            "order_id": order_id
-        }
+        if quantity > 1:
+            return {
+                "message": f"{quantity} {menu_item.name}'s added to cart",
+                "order_id": order_id
+            }
+        else:
+            return {
+                "message": f"{menu_item.name} added to cart",
+                "order_id": order_id
+            }
+            
+
 
 
 def remove_item_from_cart(db: Session, order_id: int, menu_item_id: int):
