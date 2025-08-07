@@ -44,7 +44,7 @@ def get_daily_revenue(
         db: Session = Depends(get_db)
 ):
     """
-    Get total revenue for a specific date (YYYY-MM-DD format)
+    Get total revenue and completed orders for a specific date (YYYY-MM-DD format)
     """
     return staff_services.get_daily_revenue(db=db, target_date=target_date)
 

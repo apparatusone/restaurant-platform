@@ -496,10 +496,17 @@ def checkout(db: Session, order_id: int, response=None):
     # process the payment
     payment_result = process_payment(db, order, total)
     
-    # change order to paid
+    # change order to paid and store final total
     try:
-        order_update = OrderUpdate(paid=True)
+        order_update = OrderUpdate(paid=True, final_total=total)
         updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
+        
+        # update payment status to completed
+        from ..models.payment_method import PaymentStatus
+        if order.payment:
+            order.payment.status = PaymentStatus.COMPLETED
+            db.commit()
+            
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update order payment status: {str(e)}")
 

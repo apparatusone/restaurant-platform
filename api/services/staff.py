@@ -65,21 +65,25 @@ def delete_promotion_by_code(db: Session, promo_code: str):
 
 def get_daily_revenue(db: Session, target_date: date):
     """
-    Get count of completed orders for a specific date
-    Note: Revenue calculation removed as payment_method no longer tracks amount
+    Get total revenue and completed orders for a specific date (YYYY-MM-DD format)
     """
-    # Get a count of the completed orders
-    completed_orders = db.query(func.count(Order.id)).join(
+    # Get completed orders for the date
+    completed_orders = db.query(Order).join(
         Payment, Order.id == Payment.order_id
     ).filter(
         func.date(Order.order_date) == target_date
     ).filter(
         Payment.status == PaymentStatus.COMPLETED
-    ).scalar()
+    ).all()
+    
+    # Calculate total revenue using stored final_total
+    total_revenue = sum(float(order.final_total) for order in completed_orders if order.final_total)
+    order_count = len(completed_orders)
     
     return {
         "date": target_date.isoformat(),
-        "completed_orders": completed_orders or 0
+        "completed_orders": order_count,
+        "total_revenue": round(total_revenue, 2)
     }
 
 

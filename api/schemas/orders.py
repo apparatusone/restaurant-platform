@@ -28,6 +28,7 @@ class OrderBase(BaseModel):
     order_type: OrderType = OrderType.DINE_IN
     promo_id: Optional[int] = None
     paid: bool = False
+    final_total: Optional[float] = None
     tracking_number: Optional[str] = None
 
 

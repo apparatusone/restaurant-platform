@@ -32,6 +32,7 @@ class Order(Base):
     promo_id = Column(Integer, ForeignKey("promotions.id"), nullable=True)
     paid = Column(Boolean, nullable=False, default=False)
     tracking_number = Column(String(50), nullable=True, unique=True, index=True)
+    final_total = Column(DECIMAL(10, 2), nullable=True)
 
     customer = relationship("Customer", back_populates="orders")
     order_details = relationship("OrderDetail", back_populates="order", cascade="all, delete-orphan")
