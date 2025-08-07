@@ -592,14 +592,9 @@ def get_tracking_information(db: Session, tracking_number: str):
     if not order:
         raise HTTPException(status_code=404, detail="Tracking number not found")
     
-    # Return tracking information
     return {
         "tracking_number": tracking_number,
-        "order_id": order.id,
-        "status": order.status.value,
-        "order_type": order.order_type.value,
-        "order_date": order.order_date,
-        "paid": order.paid
+        "status": order.status.value
     }
 
 
