@@ -7,6 +7,8 @@
 * `pip install pytest-mock`
 * `pip install httpx`
 * `pip install cryptography`
+* `pip install stripe`
+* `pip install python-dotenv`
 
 ### Run the server:
 `uvicorn api.main:app --reload`

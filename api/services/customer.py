@@ -370,32 +370,31 @@ def calculate_order_total(db: Session, order_id: int) -> float:
     return float(round(total, 2))
 
 
-def process_payment(db: Session, order: Order):
-    # placeholder logic, will not be implemented
-    # get payment info from the order id
-    from ..models.payment_method import Payment
+def process_payment(db: Session, order: Order, total_amount: float):
     from ..schemas.payment_method import PaymentType
-    import time
+    from .payment import process_stripe_payment
     
-    payment = order.payment
-    if not payment:
-        raise HTTPException(status_code=400, detail="No payment method found for this order")
+    if not order.payment:
+        raise HTTPException(status_code=400, detail="no payment method found")
 
-
-    example_response = {
-        "status": "approved", # assume payment was succcessful
-        "transaction_id": "txn_ABC123456789"
-    }
-
-    if order.payment.payment_type != PaymentType.CASH:
-        # "send " payment to processor
-        # simulate waiting for a response
-        time.sleep(1)
-        response = example_response
-
-         # handle response
-
-    return True
+    # cash payments don't need processing
+    if order.payment.payment_type == PaymentType.CASH:
+        return True
+    
+    # convert to cents for stripe
+    amount_cents = int(total_amount * 100)
+    
+    # get customer name for stripe metadata
+    customer_name = order.customer.customer_name if order.customer else None
+    
+    # process with stripe
+    payment_response = process_stripe_payment(amount_cents, order.id, customer_name)
+    
+    if not payment_response["success"]:
+        error_msg = payment_response.get("error", f"payment failed with status: {payment_response.get('status', 'unknown')}")
+        raise HTTPException(status_code=400, detail=error_msg)
+    
+    return payment_response
 
 
 def update_raw_ingredients(db: Session, order_id: int):
@@ -479,7 +478,6 @@ def checkout(db: Session, order_id: int, response=None):
         raise HTTPException(status_code=400, detail="No payment method found. Please add a payment method before checkout.")
 
     subtotal = calculate_order_total(db, order_id)
-    print("original subtotal: ", subtotal)
     
     # apply any promotion
     if order.promo_id:
@@ -493,7 +491,7 @@ def checkout(db: Session, order_id: int, response=None):
     total = subtotal + tax
     
     # process the payment
-    payment_result = process_payment(db, order)
+    payment_result = process_payment(db, order, total)
     
     # change order to paid
     try:
@@ -524,7 +522,7 @@ def checkout(db: Session, order_id: int, response=None):
     if response:
         response.delete_cookie(key="order_id")
     
-    # Send to kitchen (print ticket)
+    # TODO: Send to kitchen (print ticket)
 
     # handle receipt based on order type
     try:
@@ -603,7 +601,7 @@ def choose_order_type(db: Session, order_id: int, type):
     from ..schemas.orders import OrderUpdate
     from ..controllers import orders as order_controller
     
-    # Create the order update with the new type
+    # create the order update with the new type
     order_update = OrderUpdate(order_type=type)
     
     return order_controller.update(db=db, request=order_update, item_id=order_id)
