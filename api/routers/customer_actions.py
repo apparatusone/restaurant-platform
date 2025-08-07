@@ -132,7 +132,7 @@ def add_payment_method(payment_type: payment_schema.PaymentType,
     )
 
 
-@router.post("/add-promo-code-to-order", response_model=order_schema.Order)
+@router.post("/add-promo-code-to-order")
 def add_promo_code_to_order(promo_code: str, 
                            order_id: Optional[int] = Cookie(None, include_in_schema=False),
                            db: Session = Depends(get_db)):
