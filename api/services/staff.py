@@ -67,11 +67,17 @@ def get_daily_revenue(db: Session, target_date: date):
     """
     Get total revenue and completed orders for a specific date (YYYY-MM-DD format)
     """
-    # Get completed orders for the date
+    from datetime import datetime, timedelta
+    
+    start_of_day = datetime.combine(target_date, datetime.min.time())
+    end_of_day = datetime.combine(target_date, datetime.max.time())
+    
     completed_orders = db.query(Order).join(
         Payment, Order.id == Payment.order_id
     ).filter(
-        func.date(Order.order_date) == target_date
+        Order.order_date >= start_of_day
+    ).filter(
+        Order.order_date <= end_of_day
     ).filter(
         Payment.status == PaymentStatus.COMPLETED
     ).all()
