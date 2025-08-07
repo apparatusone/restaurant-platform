@@ -40,6 +40,7 @@ def add_test_orders():
                 "paid": True,
                 "tracking_number": None,
                 "payment_type": PaymentType.CASH,
+                "final_total": 34.12,
                 "order_items": [
                     {"menu_item_id": menu_items[0].id, "amount": 1},
                     {"menu_item_id": menu_items[1].id, "amount": 1}
@@ -54,6 +55,7 @@ def add_test_orders():
                 "tracking_number": "TK123ABC",
                 "payment_type": PaymentType.CREDIT_CARD,
                 "card_number": "4532123456789012",
+                "final_total": 14.12,
                 "order_items": [
                     {"menu_item_id": menu_items[0].id, "amount": 2}
                 ]
@@ -66,6 +68,7 @@ def add_test_orders():
                 "paid": True,
                 "tracking_number": "DL456XYZ",
                 "payment_type": PaymentType.CREDIT_CARD,
+                "final_total": 94.12,
                 "card_number": "4532987654321098",
                 "order_items": [
                     {"menu_item_id": menu_items[0].id, "amount": 1},
@@ -84,6 +87,7 @@ def add_test_orders():
                 status=order_data["status"],
                 order_type=order_data["order_type"],
                 paid=order_data["paid"],
+                final_total=order_data["final_total"],
                 tracking_number=order_data["tracking_number"],
                 order_date=datetime.now()
             )
