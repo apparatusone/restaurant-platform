@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, FastAPI, status, Response, Path, Body
 from sqlalchemy.orm import Session
 from datetime import date
-from ..services import staff_services
+from ..services import staff as staff_services
 from ..schemas import menu_items as schema
 from ..schemas import promotions as promotion_schema
 from ..dependencies.database import engine, get_db

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Response, Cookie, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional, Annotated
-from ..services import customer_services
+from ..services import customer as customer_services
 from ..schemas import menu_items as schema
 from ..schemas import order_details as order_detail_schema
 from ..schemas import payment_method as payment_schema

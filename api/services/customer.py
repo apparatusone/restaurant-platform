@@ -18,7 +18,7 @@ from ..controllers import customers as customer_controller
 from ..schemas.payment_method import PaymentType
 from ..models.order_details import OrderDetail
 from ..models.menu_items import MenuItem
-from .print_services import print_receipt
+from .print import print_receipt
 from ..models.orders import Order
 
 from decimal import Decimal
@@ -508,7 +508,6 @@ def checkout(db: Session, order_id: int, response=None):
         else:
             tracking_number = order.tracking_number
     
-    # Prepare response message
     response_data = {
         "message": "Order successfully created",
         "total": round(total, 2)

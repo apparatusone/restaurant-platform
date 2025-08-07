@@ -44,8 +44,17 @@ def get_order_items_for_receipt(order_id: int) -> list[tuple[str, float]]:
     
     items = []
     for detail in order_details:
-        # Format item name: "QUANTITY x ITEM_NAME"
+        # format item name: "QUANTITY x ITEM_NAME"
         item_name = detail.menu_item.name.upper()
+        
+        # calculate max length for item name
+        # Format: "QTY x ITEM_NAME" + space + "PRICE"
+        # item, quantity, " x ", space, and price (up to 8 chars)
+        max_item_length = COLS - len(str(detail.amount)) - 3 - 1 - 8
+        
+        # truncate item name
+        if len(item_name) > max_item_length:
+            item_name = item_name[:max_item_length-3] + "..."
         
         formatted_name = f"{detail.amount} x {item_name}"
         
