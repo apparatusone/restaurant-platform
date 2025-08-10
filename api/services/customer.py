@@ -234,7 +234,32 @@ def add_to_cart(db: Session, menu_item_id: int, quantity: int, customer_id: Opti
                 "message": f"{menu_item.name} added to cart",
                 "order_id": order_id
             }
-            
+
+
+def get_customer_cart(db: Session, order_id: int) -> list[dict]:
+    """
+    Get the contents of the customer's cart, including menu item details.
+    """
+    from ..models.menu_items import MenuItem
+
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    cart = []
+    for item in order.order_details:
+        menu_item = db.query(MenuItem).filter(MenuItem.id == item.menu_item_id).first()
+        if menu_item:
+            cart.append({
+                "menu_item_id": menu_item.id,
+                "name": menu_item.name,
+                "amount": item.amount,
+                "description": menu_item.description,
+                "price": menu_item.price
+                # "image_url": menu_item.image_url,  # Uncomment if available
+            })
+    return cart
+    
 
 
 

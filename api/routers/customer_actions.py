@@ -59,6 +59,14 @@ def add_to_cart(response: Response, menu_item_id: int, quantity: int,
     return result
 
 
+@router.get("/view-cart/{order_id}")
+def get_customer_cart(order_id: int, db: Session = Depends(get_db)):
+    """
+    Get the items the customer currently has in the cart
+    """
+    return customer_services.get_customer_cart(db=db, order_id=order_id)
+
+
 @router.delete("/remove-from-cart")
 def remove_from_cart(menu_item_id: int, order_id: Optional[int] = Cookie(None, include_in_schema=False), db: Session = Depends(get_db)):
     """
