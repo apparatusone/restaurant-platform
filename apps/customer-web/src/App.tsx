@@ -38,6 +38,7 @@ function App() {
 
   return (
         <CartProvider>
+            <Header/>
       <div>
         <a href="https://vite.dev" target="_blank">
           <img src={viteLogo} className="logo" alt="Vite logo" />
@@ -47,11 +48,15 @@ function App() {
         </a>
       </div>
             <Toaster richColors position="top-center" />
-                    <Cart />
+            
+            {currentView === 'menu' ? (
+                <div className='flex'>
+                    <Menu />
+                    <Cart onCheckout={handleGoToCheckout} />
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+            ) : (
+                <Checkout onBack={handleBackToMenu} />
+            )}
         </CartProvider>
   )
 }
