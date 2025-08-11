@@ -7,10 +7,6 @@ import Header from './Header'
 import { CartProvider } from './CartContext'
 import './App.css'
 
-// interface {
-
-// }
-
 function App() {
     const [currentView, setCurrentView] = useState<'menu' | 'checkout'>('menu');
 
@@ -22,29 +18,21 @@ function App() {
         setCurrentView('menu');
     };
 
-  return (
+    return (
         <CartProvider>
             <Header/>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
             <Toaster richColors position="top-center" />
             
             {currentView === 'menu' ? (
                 <div className='flex'>
                     <Menu />
                     <Cart onCheckout={handleGoToCheckout} />
-      </div>
+                </div>
             ) : (
                 <Checkout onBack={handleBackToMenu} />
             )}
         </CartProvider>
-  )
+    )
 }
 
 export default App
