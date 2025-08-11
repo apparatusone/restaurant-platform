@@ -1,4 +1,5 @@
 import React from "react";
+import { toast } from "sonner"
 import { useCart } from "./CartContext";
 import type { LocalCartItem } from "./models";
 import { LuPlus, LuMinus } from "react-icons/lu";
@@ -8,6 +9,30 @@ interface CartItemProps {
 }
 
 const CartItem: React.FC<CartItemProps> = ({ item }) => {
+    const { changeQuantity, removeItem: removeFromCart } = useCart();
+
+    function updateQuantity(change: number) {
+        try {
+            const result = changeQuantity(item.id, change);
+            
+            if (!result) {
+                toast.warning(`${item.name} removed from cart`);
+            }
+        } catch (err) {
+            console.error('Quantity update error:', err);
+            toast.error('Failed to update quantity');
+        }
+    }
+
+    function removeItem() {
+        try {
+            removeFromCart(item.id);
+            toast.warning(`${item.name} was removed from cart`);
+        } catch (err) {
+            console.error('Remove error:', err);
+            toast.error('Failed to remove item');
+        }
+    }
 
     return (
         <div className="border-b px-2 pt-4 pb-2 flex flex-col justify-start gap-4">
@@ -21,11 +46,13 @@ const CartItem: React.FC<CartItemProps> = ({ item }) => {
             <div className="flex justify-between gap-4">
                 <button className="text-blue-600 hover:underline text-sm" onClick={removeItem}>Remove</button>
                 <div className="flex justify-between border border-b-gray-300 rounded-xl">
-                    <button className="w-8 h-8 flex items-center justify-center p-1" 
+                    <button className="w-8 h-8 flex items-center justify-center p-1"
+                        onClick={() => updateQuantity(1)}>
                             <LuPlus className="inline" />
                     </button>
                     <span className="w-6 h-8 flex items-center justify-center">{item.quantity}</span>
-                    <button className="w-8 flex items-center justify-center text-xl p-0" 
+                    <button className="w-8 flex items-center justify-center text-xl p-0"
+                        onClick={() => updateQuantity(-1)}>
                             <LuMinus className="inline" />
                     </button>
                 </div>
