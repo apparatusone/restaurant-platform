@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/sonner"
+import { CartProvider } from './CartContext'
 import './App.css'
 
 // interface {
@@ -35,7 +36,7 @@ function App() {
     if (error) return <div>Error: {error}</div>
 
   return (
-    <>
+        <CartProvider>
       <div>
         <a href="https://vite.dev" target="_blank">
           <img src={viteLogo} className="logo" alt="Vite logo" />
@@ -49,7 +50,7 @@ function App() {
       <p className="read-the-docs">
         Click on the Vite and React logos to learn more
       </p>
-    </>
+        </CartProvider>
   )
 }
 
