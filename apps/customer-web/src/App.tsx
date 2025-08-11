@@ -46,6 +46,7 @@ function App() {
         </a>
       </div>
             <Toaster richColors position="top-center" />
+                    <Cart />
       </div>
       <p className="read-the-docs">
         Click on the Vite and React logos to learn more
