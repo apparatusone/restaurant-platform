@@ -1,4 +1,21 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+
+@theme {
+    --color-melon: #ffa69e;
+    --color-eggshell: #faf3dd;
+    --color-celeste: #b8f2e6;
+    --color-light_blue: #aed9e0;
+    --color-paynes_gray: #5e6472;
+}
+
+html, body, #root {
+  height: 100vh !important;
+  min-height: 100vh !important;
+}
 
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
