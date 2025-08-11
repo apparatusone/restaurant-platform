@@ -1,3 +1,7 @@
+import { useState } from 'react'
+import Menu from './Menu'
+import Cart from './Cart'
+import Checkout from './pages/Checkout'
 import { Toaster } from "@/components/ui/sonner"
 import Header from './Header'
 import { CartProvider } from './CartContext'
@@ -8,33 +12,15 @@ import './App.css'
 // }
 
 function App() {
-  const [count, setCount] = useState(0)
+    const [currentView, setCurrentView] = useState<'menu' | 'checkout'>('menu');
 
-    const [menuItems, setMenuItems] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const handleGoToCheckout = () => {
+        setCurrentView('checkout');
+    };
 
-    useEffect(() => {
-        const fetchMenuItems = async () => {
-        try {
-            const response = await fetch('http://localhost:8000/customer/menu')
-            if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`)
-            }
-            const data = await response.json()
-            setMenuItems(data)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to fetch menu items')
-        } finally {
-            setLoading(false)
-        }
-        }
-
-        fetchMenuItems()
-    }, [])
-
-    if (loading) return <div>Loading menu items...</div>
-    if (error) return <div>Error: {error}</div>
+    const handleBackToMenu = () => {
+        setCurrentView('menu');
+    };
 
   return (
         <CartProvider>
