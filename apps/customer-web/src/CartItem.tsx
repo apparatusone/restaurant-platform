@@ -1,9 +1,12 @@
+import React from "react";
 import { useCart } from "./CartContext";
 import type { LocalCartItem } from "./models";
 import { LuPlus, LuMinus } from "react-icons/lu";
+
 interface CartItemProps {
     item: LocalCartItem;
 }
+
 const CartItem: React.FC<CartItemProps> = ({ item }) => {
 
     return (
@@ -14,7 +17,7 @@ const CartItem: React.FC<CartItemProps> = ({ item }) => {
                 {/* quantity x price */}
                 <div className="font-semibold">${(item.quantity * item.price).toFixed(2)}</div>
             </div>
-            {/* <div className="text-sm text-gray-600 mb-2 max-w-[80%] text-left">{item.description}</div> */}
+
             <div className="flex justify-between gap-4">
                 <button className="text-blue-600 hover:underline text-sm" onClick={removeItem}>Remove</button>
                 <div className="flex justify-between border border-b-gray-300 rounded-xl">
