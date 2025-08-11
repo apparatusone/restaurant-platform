@@ -8,6 +8,7 @@ from ..schemas import payment_method as payment_schema
 from ..schemas import customers as customer_schema
 from ..schemas import orders as order_schema
 from ..schemas import reviews as review_schema
+from ..schemas import order_submission as order_submission_schema
 from ..controllers import payment_method as payment_controller
 from ..controllers import customers as customer_controller
 from ..controllers import orders as order_controller
@@ -215,3 +216,15 @@ def get_reviews(db: Session = Depends(get_db)):
     Get menu items that have reviews and the reviews
     """
     return customer_services.get_reviews(db=db)
+
+
+@router.post("/submit-order", response_model=order_submission_schema.OrderSubmissionResponse)
+def submit_complete_order(
+    order_data: order_submission_schema.CompleteOrderSubmission,
+    db: Session = Depends(get_db)
+):
+    """
+    Submit a complete order from the browser with all customer, delivery, and payment information.
+    This replaces the need for multiple API calls to build an order.
+    """
+    return customer_services.submit_complete_order(db=db, order_data=order_data)
