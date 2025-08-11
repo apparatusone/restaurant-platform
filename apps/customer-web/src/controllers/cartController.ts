@@ -64,7 +64,39 @@ export class CartController {
         return CartService.prepareOrder(this.getItems());
     }
 
-    // Persistence methods
+    // store/pull cart in local storage
+    serialize(): string {
+        return JSON.stringify(Array.from(this.items.entries()));
+    }
+
+    deserialize(data: string): void {
+        try {
+        const entries = JSON.parse(data) as [number, LocalCartItem][];
+            this.items = new Map(entries);
+            this.notify();
+        } catch (error) {
+            console.error('Failed to deserialize cart:', error);
+        }
+    }
+
+    saveToStorage(): void {
+        try {
+            localStorage.setItem('cart', this.serialize());
+        } catch (error) {
+            console.error('Failed to save cart to storage:', error);
+        }
+    }
+
+    loadFromStorage(): void {
+        try {
+            const data = localStorage.getItem('cart');
+        if (data) {
+            this.deserialize(data);
+        }
+        } catch (error) {
+            console.error('Failed to load cart from storage:', error);
+        }
+    }
 }
 
 // Singleton instance

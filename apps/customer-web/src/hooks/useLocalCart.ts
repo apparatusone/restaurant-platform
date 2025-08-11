@@ -8,10 +8,17 @@ export function useLocalCart() {
     const [summary, setSummary] = useState<CartSummary>(cartController.getSummary());
 
     useEffect(() => {
+        // Load cart from storage on mount
+        cartController.loadFromStorage();
+        setItems(cartController.getItems());
+        setSummary(cartController.getSummary());
+
         // Subscribe to cart changes
         const unsubscribe = cartController.subscribe(() => {
         setItems(cartController.getItems());
         setSummary(cartController.getSummary());
+        // Auto-save to storage on changes
+        cartController.saveToStorage();
         });
 
         return unsubscribe;
@@ -46,7 +53,7 @@ export function useLocalCart() {
     };
 
     return {
-items,
+        items,
         summary,
         addItem,
         updateQuantity,
