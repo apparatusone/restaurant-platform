@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/sonner"
+import Header from './Header'
 import { CartProvider } from './CartContext'
 import './App.css'
 
