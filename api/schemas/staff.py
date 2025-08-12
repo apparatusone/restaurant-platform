@@ -1,4 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict, NonNegativeInt
+from pydantic import StringConstraints
+from typing import Annotated
+from datetime import datetime
 from typing import Optional
 from enum import Enum
 from nanoid import generate
@@ -6,48 +9,58 @@ from nanoid import generate
 def generate_staff_id():
     return generate('0123456789', 4)
 
+# 4 numeric digits for staff_id at the schema layer
+StaffID = Annotated[str, StringConstraints(pattern=r"^\d{4}$", min_length=4, max_length=4)]
+
+# strip whitespace and require non-empty names
+NameStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
+# non-negative integer type for counters
+FailedAttempts = NonNegativeInt
+
 class StaffRole(str, Enum):
     host = "host"
     waiter = "waiter"
     manager = "manager"
     kitchen = "kitchen"
+    admin = "admin"
+
 
 class StaffBase(BaseModel):
-    name: str = Field(..., description="Display name")
+    name: NameStr = Field(..., description="Display name")
     role: StaffRole
     is_active: bool = True
+    model_config = ConfigDict(str_strip_whitespace=True)
+
 
 class StaffCreate(StaffBase):
-    staff_id: str = Field(
+    staff_id: StaffID = Field(
         default_factory=generate_staff_id,
         description="Login ID for staff"
     )
-    pin_hash: str
-    pin_salt: str
-    failed_attempts: int = 0
-    last_login: Optional[str] = None  # ISO format
+    pin: str = Field(..., min_length=4, max_length=6, description="Plaintext PIN; will be hashed server-side")
+    failed_attempts: FailedAttempts = 0 # non-negative attempt counter
+    last_login: Optional[datetime] = None
+
 
 class StaffUpdate(BaseModel):
-    name: Optional[str] = None
+    # staff_id is excluded to keep immutable
+    # create new staff if id "compromised"
+    name: Optional[NameStr] = None
     role: Optional[StaffRole] = None
+    pin: Optional[str] = Field(None, min_length=4, max_length=6, description="New PIN; hashed server-side")
     is_active: Optional[bool] = None
-    staff_id: Optional[str] = None
-    pin_hash: Optional[str] = None
-    pin_salt: Optional[str] = None
-    failed_attempts: Optional[int] = None
-    last_login: Optional[str] = None
+    failed_attempts: Optional[FailedAttempts] = None
+    last_login: Optional[datetime] = None
+
 
 class Staff(StaffBase):
-    db_id: int = Field(..., description="Internal DB primary key", alias="id")
-    staff_id: str = Field(
+    # Expose DB PK as `id` to API consumers while keeping the internal field name explicit
+    id: int
+    staff_id: StaffID = Field(
         default_factory=generate_staff_id,
         description="Login ID for staff"
     )
-    pin_hash: str
-    pin_salt: str
-    failed_attempts: int
-    last_login: Optional[str] = None
-
-    class Config:
-        orm_mode = True
-        allow_population_by_field_name = True
+    failed_attempts: FailedAttempts
+    last_login: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
