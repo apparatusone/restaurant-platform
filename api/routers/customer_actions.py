@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Response, Cookie, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional, Annotated
 from ..services import customer as customer_services

@@ -43,7 +43,6 @@ class CompleteOrderSubmission(BaseModel):
     customer: CustomerInfoSubmission
     delivery: DeliveryInfoSubmission
     
-    # Payment information
     payment: PaymentInfoSubmission
     
     # Order metadata
@@ -58,3 +57,4 @@ class OrderSubmissionResponse(BaseModel):
     order_id: int
     tracking_number: str
     estimated_delivery_time: Optional[str] = None
+    order_status: str  # "confirmed" or "pending_resources"
