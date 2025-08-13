@@ -61,7 +61,7 @@ def pin_login(db: Session, req: PinLoginRequest) -> PinLoginResponse:
         else:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Wrong PIN, {remaining_attempts} attempts remaining.")
 
-    # reset counters and update last_login
+    # TODO: track last login datetime
     staff.failed_attempts = 0
     db.commit()
 
