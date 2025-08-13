@@ -12,7 +12,8 @@ from . import (
     promotions,
     customer_actions,
     analytics,
-    staff
+    staff,
+    auth
 )
 
 def load_routes(app):
@@ -30,3 +31,4 @@ def load_routes(app):
     app.include_router(reviews.router)
     app.include_router(promotions.router)
     app.include_router(staff.router)
+    app.include_router(auth.router)

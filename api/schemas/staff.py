@@ -45,7 +45,7 @@ class StaffCreate(StaffBase):
 
 class StaffUpdate(BaseModel):
     # staff_id is excluded to keep immutable
-    # create new staff if id "compromised"
+    # delete and create new staff if id "compromised"
     name: Optional[NameStr] = None
     role: Optional[StaffRole] = None
     pin: Optional[str] = Field(None, min_length=4, max_length=6, description="New PIN; hashed server-side")
