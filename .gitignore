@@ -12,7 +12,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
+**/build/
 develop-eggs/
 dist/
 downloads/
@@ -215,9 +215,14 @@ __marimo__/
 .vscode/
 .vite/
 
-/.svelte-kit
+# svelte
+**/.svelte-kit
 /package
 .env.*
 !.env.example
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# tauri
+**/target/
+**/gen/schemas/
