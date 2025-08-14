@@ -1,9 +1,8 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 from .order_details import OrderDetail
-from .payment_method import Payment
 
 
 class OrderType(str, Enum):
@@ -11,25 +10,33 @@ class OrderType(str, Enum):
     TAKEOUT = "takeout"
     DELIVERY = "delivery"
 
-class StatusType(str, Enum):
+
+class OrderStatus(str, Enum):
+    # kitchen workflow
     PENDING = "pending"
     CONFIRMED = "confirmed"
     IN_PROGRESS = "in_progress"
+    READY = "ready"
+    
+    # fulfillment workflow
     AWAITING_PICKUP = "awaiting_pickup"
     OUT_FOR_DELIVERY = "out_for_delivery"
-    CANCELLED = "cancelled"
+    DELIVERED = "delivered"
+    SERVED = "served"  # for dine-in
     COMPLETED = "completed"
+    CANCELLED = "cancelled"
 
 
 class OrderBase(BaseModel):
-    customer_id: Optional[int] = None
-    description: Optional[str] = None
-    status: StatusType = StatusType.PENDING
+    check_id: int = Field(..., description="FK -> checks.id")
+    customer_id: Optional[int] = Field(None, description="FK -> customers.id")
+    promo_id: Optional[int] = Field(None, description="FK -> promotions.id")
+    status: OrderStatus = OrderStatus.PENDING
     order_type: OrderType = OrderType.DINE_IN
-    promo_id: Optional[int] = None
-    paid: bool = False
-    final_total: Optional[float] = None
-    tracking_number: Optional[str] = None
+    tracking_number: Optional[str] = Field(None, description="Tracking number for takeout/delivery orders")
+    notes: Optional[str] = Field(None, description="Special instructions")
+    
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
 
 class OrderCreate(OrderBase):
@@ -38,21 +45,20 @@ class OrderCreate(OrderBase):
 
 class OrderUpdate(BaseModel):
     customer_id: Optional[int] = None
-    description: Optional[str] = None
-    status: Optional[StatusType] = None
-    order_type: Optional[OrderType] = None
     promo_id: Optional[int] = None
-    paid: Optional[bool] = None
+    status: Optional[OrderStatus] = None
+    order_type: Optional[OrderType] = None
     tracking_number: Optional[str] = None
-    order_date: Optional[datetime] = None
-    final_total: Optional[float] = None
+    notes: Optional[str] = None
+    
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
 
 class Order(OrderBase):
     id: int
-    order_date: Optional[datetime] = None
+    order_date: datetime
+    created_at: datetime
+    updated_at: datetime
     order_details: Optional[list[OrderDetail]] = None
-    payment: Optional[Payment] = None
-
-    class ConfigDict:
-        from_attributes = True
+    
+    model_config = ConfigDict(from_attributes=True)

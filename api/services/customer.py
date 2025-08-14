@@ -327,11 +327,7 @@ def update_raw_ingredients(db: Session, order_id: int):
     return True
 
 
-def generate_tracking_number():
-    """
-    generate an 8-digit random tracking number
-    """
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+
 
 
 # TODO: this handles far too much, simplify
@@ -343,7 +339,7 @@ def checkout(db: Session, order_id: int, response=None):
     from ..models.orders import Order
     from datetime import datetime
     from fastapi import HTTPException
-    from ..schemas.orders import StatusType
+    from ..schemas.orders import OrderStatus
     from ..schemas.orders import OrderUpdate
     from ..config.restaurant import TAX_RATE
 
@@ -398,7 +394,7 @@ def checkout(db: Session, order_id: int, response=None):
 
     # change order status
     try:
-        order_update = OrderUpdate(status=StatusType.IN_PROGRESS)
+        order_update = OrderUpdate(status=OrderStatus.IN_PROGRESS)
         updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update order status to in progress: {str(e)}")
@@ -438,16 +434,21 @@ def checkout(db: Session, order_id: int, response=None):
     if order.order_type.value in ["takeout", "delivery"]:
         # only generate if no existing number
         if not order.tracking_number:
-            tracking_number = generate_tracking_number()
+            from ..controllers.orders import generate_tracking_number
+            from ..models.orders import OrderType
+            
+            # Convert string to enum for tracking number generation
+            order_type_enum = OrderType.TAKEOUT if order.order_type.value == "takeout" else OrderType.DELIVERY
+            tracking_number = generate_tracking_number(order_type_enum)
             
             # check for duplicate tracking number
             while db.query(Order).filter(Order.tracking_number == tracking_number).first():
-                tracking_number = generate_tracking_number()
+                tracking_number = generate_tracking_number(order_type_enum)
             
             # update the order with the tracking number
             try:
                 order_update = OrderUpdate(tracking_number=tracking_number)
-                updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
+                updated_order = order_controller.update(db=db, order_id=order_id, request=order_update)
                 db.refresh(order)
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"Failed to update tracking number: {str(e)}")
