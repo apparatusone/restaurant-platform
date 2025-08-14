@@ -20,7 +20,7 @@ FailedAttempts = NonNegativeInt
 
 class StaffRole(str, Enum):
     host = "host"
-    waiter = "waiter"
+    server = "server"
     manager = "manager"
     kitchen = "kitchen"
     admin = "admin"

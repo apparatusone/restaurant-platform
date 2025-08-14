@@ -5,7 +5,7 @@ from ..services import staff as staff_services
 from ..schemas import menu_items as schema
 from ..schemas import promotions as promotion_schema
 from ..dependencies.database import engine, get_db
-from ..models.orders import StatusType
+from ..models.orders import OrderStatus
 
 # holds common actions made by the staff
 
@@ -61,7 +61,7 @@ def review_feedback(
 
 
 @router.get("/orders/status/{status}")
-def get_orders_by_status(status: StatusType, db: Session = Depends(get_db)):
+def get_orders_by_status(status: OrderStatus, db: Session = Depends(get_db)):
     """
     Get orders filtered by status
     """
@@ -69,7 +69,7 @@ def get_orders_by_status(status: StatusType, db: Session = Depends(get_db)):
 
 
 @router.put("/orders/{order_id}/status")
-def update_order_status(order_id: int, status: StatusType, db: Session = Depends(get_db)):
+def update_order_status(order_id: int, status: OrderStatus, db: Session = Depends(get_db)):
     """
     Update the status of an order
     """
