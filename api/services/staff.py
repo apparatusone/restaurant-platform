@@ -7,7 +7,7 @@ from api.models.menu_item_ingredients import MenuItemIngredient
 from api.models.resources import Resource
 from api.models import promotions as promotion_model
 from api.models.payment_method import Payment, PaymentStatus
-from api.models.orders import Order, StatusType
+from api.models.orders import Order, OrderStatus
 from api.models.reviews import Reviews
 from api.models.menu_items import MenuItem
 from .analytics import ValueSort
@@ -100,7 +100,7 @@ def review_feedback(db: Session, rating: int):
     return db.query(Reviews).join(MenuItem).filter(Reviews.rating == rating).all()
 
 
-def get_orders_by_status(db: Session, status: StatusType):
+def get_orders_by_status(db: Session, status: OrderStatus):
     """
     Get orders filtered by status
     """
@@ -125,7 +125,7 @@ def get_orders_by_date_range(db: Session, start_date: date, end_date: date):
     ).all()
 
 
-def update_order_status(db: Session, order_id: int, status: StatusType):
+def update_order_status(db: Session, order_id: int, status: OrderStatus):
     """
     Update the status of an order
     """
@@ -140,7 +140,7 @@ def update_order_status(db: Session, order_id: int, status: StatusType):
     # update the order status
     try:
         order_update = OrderUpdate(status=status)
-        updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
+        updated_order = order_controller.update(db=db, request=order_update, order_id=order_id)
         return updated_order
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update order status: {str(e)}")
