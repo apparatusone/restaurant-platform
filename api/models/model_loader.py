@@ -4,6 +4,7 @@ from ..dependencies.database import engine
 
 
 def index():
+    tables.Base.metadata.create_all(engine)  # Tables (references sessions)
     orders.Base.metadata.create_all(engine)
     order_details.Base.metadata.create_all(engine)
     resources.Base.metadata.create_all(engine)
