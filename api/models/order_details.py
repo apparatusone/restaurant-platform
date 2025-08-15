@@ -1,14 +1,25 @@
-from sqlalchemy import Column, ForeignKey, Integer
+from sqlalchemy import Column, ForeignKey, Integer, Numeric, DateTime, Text
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from ..dependencies.database import Base
+
 
 class OrderDetail(Base):
     __tablename__ = "order_details"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    order_id = Column(Integer, ForeignKey("orders.id", ondelete="CASCADE"))
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    order_id = Column(Integer, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
     menu_item_id = Column(Integer, ForeignKey("menu_items.id"), nullable=False)
-    amount = Column(Integer, index=True, nullable=False)
+    quantity = Column(Integer, nullable=False)
+    unit_price = Column(Numeric(10, 2), nullable=False)
+    line_total = Column(Numeric(10, 2), nullable=False)
+    special_instructions = Column(Text, nullable=True)
+    
+    # timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
+
+    # relationships
     menu_item = relationship("MenuItem", back_populates="order_details")
     order = relationship("Order", back_populates="order_details")
