@@ -32,4 +32,4 @@ class Payment(Base):
         
         # relationships
         check = relationship("Check", back_populates="payments")
-        order = relationship("Order", back_populates="payment")
+        order = relationship("Order", back_populates="payments")
