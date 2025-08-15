@@ -10,6 +10,7 @@ class TestDataType(str, Enum):
     PROMOTIONS = "promotions"
     REVIEWS = "reviews"
     ORDERS = "orders"
+    TABLES = "tables"
 
 
 def add_test_data(data_type: TestDataType):
@@ -24,6 +25,7 @@ def add_test_data(data_type: TestDataType):
                 TestDataType.FOOD, 
                 TestDataType.PROMOTIONS,
                 TestDataType.REVIEWS,
+                TestDataType.TABLES,
                 TestDataType.ORDERS
             ]
             
@@ -61,6 +63,11 @@ def add_test_data(data_type: TestDataType):
             from scripts.add_test_orders import add_test_orders
             success = add_test_orders()
             message = "Test orders added successfully"
+
+        elif data_type == TestDataType.TABLES:
+            from scripts.add_test_tables import add_test_tables
+            success = add_test_tables()
+            message = "Test tables added successfully"
                     
         if not success:
             raise HTTPException(
