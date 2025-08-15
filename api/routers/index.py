@@ -15,6 +15,7 @@ from . import (
     staff,
     auth,
     tables,
+    checks
 )
 
 def load_routes(app):
@@ -34,3 +35,4 @@ def load_routes(app):
     app.include_router(staff.router)
     app.include_router(auth.router)
     app.include_router(tables.router)
+    app.include_router(checks.router)
