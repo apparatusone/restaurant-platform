@@ -1,6 +1,6 @@
-from sqlalchemy import Column, ForeignKey, Integer, String, DATETIME, Enum
+from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Enum, Numeric
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from sqlalchemy.sql import func
 from ..dependencies.database import Base
 import enum
 
@@ -17,14 +17,19 @@ class PaymentStatus(enum.Enum):
         FAILED = "failed"
         REFUNDED = "refunded"
 
+
 class Payment(Base):
         __tablename__ = "payment_method"
 
-        id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-        order_id = Column(Integer, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
-        payment_date = Column(DATETIME, nullable=False, default=str(datetime.now()))
-        status = Column(Enum(PaymentStatus), nullable=False, default=PaymentStatus.PENDING)
+        id = Column(Integer, primary_key=True, autoincrement=True)
+        check_id = Column(Integer, ForeignKey("checks.id", ondelete="CASCADE"), nullable=False)
+        order_id = Column(Integer, ForeignKey("orders.id", ondelete="CASCADE"), nullable=True)
+        amount = Column(Numeric(10, 2), nullable=False)
+        payment_date = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+        status = Column(Enum(PaymentStatus), default=PaymentStatus.PENDING, nullable=False)
         payment_type = Column(Enum(PaymentType), nullable=False)
         card_number = Column(String(20), nullable=True)
-
+        
+        # relationships
+        check = relationship("Check", back_populates="payments")
         order = relationship("Order", back_populates="payment")

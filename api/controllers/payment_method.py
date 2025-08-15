@@ -1,38 +1,65 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, Response, Depends
 from ..models import payment_method as model
+from ..models.checks import Check
 from ..models.orders import Order
 from sqlalchemy.exc import SQLAlchemyError
 from ..schemas.payment_method import PaymentType, PaymentStatus
+from decimal import Decimal
 
 
 def create(db: Session, request):
-    # First check if the order exists
-    order = db.query(Order).filter(Order.id == request.order_id).first()
-    if not order:
+    check = db.query(Check).filter(Check.id == request.check_id).first()
+    if not check:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Order with id {request.order_id} not found"
+            detail=f"Check with id {request.check_id} not found"
         )
     
-    # Check if a payment method already exists
-    existing_payment = db.query(model.Payment).filter(model.Payment.order_id == request.order_id).first()
-    if existing_payment:
+    # validate order_id if provided
+    if request.order_id:
+        order = db.query(Order).filter(Order.id == request.order_id).first()
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Order with id {request.order_id} not found"
+            )
+        
+        # ensure order belongs to the check
+        if order.check_id != request.check_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Order {request.order_id} does not belong to check {request.check_id}"
+            )
+    
+    # validate payment amount
+    if request.amount <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Payment method already exists for order {request.order_id}"
+            detail="Payment amount must be greater than 0"
+        )
+    
+    # check if total payments would exceed check total
+    existing_payments = db.query(model.Payment).filter(
+        model.Payment.check_id == request.check_id,
+        model.Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+    ).all()
+    
+    total_existing = sum(payment.amount for payment in existing_payments)
+    if total_existing + request.amount > check.total_amount:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Payment amount would exceed check total. Check total: {check.total_amount}, existing payments: {total_existing}, attempted payment: {request.amount}"
         )
 
-    payment_status = None
-    if request.payment_type == PaymentType.CASH:
-        payment_status = PaymentStatus.COMPLETED
-    else:
-        payment_status = request.status
+    payment_status = PaymentStatus.COMPLETED if request.payment_type == PaymentType.CASH else request.status
 
     new_item = model.Payment(
+        check_id=request.check_id,
+        order_id=request.order_id,
+        amount=request.amount,
         payment_type=request.payment_type,
         status=payment_status,
-        order_id=request.order_id,
         card_number=request.card_number
     )
 

@@ -2,6 +2,7 @@ from datetime import datetime
 from pydantic import BaseModel
 from enum import Enum
 from typing import Optional
+from decimal import Decimal
 
 class PaymentType(str, Enum):
     CASH = "cash"
@@ -16,10 +17,12 @@ class PaymentStatus(str, Enum):
 
 
 class PaymentBase(BaseModel):
-    order_id: int
+    check_id: int
+    amount: Decimal
     payment_type: PaymentType = None
     status: PaymentStatus = PaymentStatus.PENDING
     card_number: Optional[str] = None
+    order_id: Optional[int] = None  # optional reference for tracking
 
 
 class PaymentCreate(PaymentBase):
@@ -27,10 +30,12 @@ class PaymentCreate(PaymentBase):
 
 
 class PaymentUpdate(BaseModel):
-    order_id: int
-    payment_type: PaymentType = None
-    status: PaymentStatus = None
+    check_id: Optional[int] = None
+    amount: Optional[Decimal] = None
+    payment_type: Optional[PaymentType] = None
+    status: Optional[PaymentStatus] = None
     card_number: Optional[str] = None
+    order_id: Optional[int] = None
 
 
 class Payment(PaymentBase):
@@ -39,3 +44,13 @@ class Payment(PaymentBase):
 
     class ConfigDict:
         from_attributes = True
+
+
+class SplitPaymentItem(BaseModel):
+    amount: Decimal
+    payment_type: PaymentType
+    card_number: Optional[str] = None
+
+
+class SplitPaymentRequest(BaseModel):
+    payments: list[SplitPaymentItem]
