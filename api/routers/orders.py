@@ -6,7 +6,6 @@ from ..schemas import orders as schema
 from ..models.orders import OrderStatus
 from ..services import staff as staff_services
 from ..services import customer as customer_services
-
 from ..dependencies.database import get_db
 
 router = APIRouter(prefix="/orders", tags=["orders"])
