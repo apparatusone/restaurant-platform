@@ -71,9 +71,18 @@ def get_orders_by_status(status: OrderStatus, db: Session = Depends(get_db)):
 @router.put("/orders/{order_id}/status")
 def update_order_status(order_id: int, status: OrderStatus, db: Session = Depends(get_db)):
     """
-    Update the status of an order
+    Update the status of an order with validation
     """
     return staff_services.update_order_status(db=db, order_id=order_id, status=status)
+
+
+@router.get("/orders/{order_id}/status")
+def get_order_status_info(order_id: int, db: Session = Depends(get_db)):
+    """
+    Get order status information
+    """
+    from ..controllers import orders as order_controller
+    return order_controller.get_order_status_info(db=db, order_id=order_id)
 
 
 @router.get("/orders/date-range")

@@ -127,21 +127,16 @@ def get_orders_by_date_range(db: Session, start_date: date, end_date: date):
 
 def update_order_status(db: Session, order_id: int, status: OrderStatus):
     """
-    Update the status of an order
+    Update the status of an order with validation
     """
     from ..controllers import orders as order_controller
-    from ..schemas.orders import OrderUpdate
     
-    # check if order exists
-    order = db.query(Order).filter(Order.id == order_id).first()
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    
-    # update the order status
+    # status validation
     try:
-        order_update = OrderUpdate(status=status)
-        updated_order = order_controller.update(db=db, request=order_update, order_id=order_id)
+        updated_order = order_controller.update_status(db=db, order_id=order_id, new_status=status)
         return updated_order
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update order status: {str(e)}")
 
