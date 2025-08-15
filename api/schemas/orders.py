@@ -39,8 +39,17 @@ class OrderBase(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
 
-class OrderCreate(OrderBase):
-    pass
+class OrderCreate(BaseModel):
+    # check_id is optional for online orders - will be auto-created
+    check_id: Optional[int] = Field(None, description="FK -> checks.id (optional for online orders)")
+    customer_id: Optional[int] = Field(None, description="FK -> customers.id")
+    promo_id: Optional[int] = Field(None, description="FK -> promotions.id")
+    status: OrderStatus = OrderStatus.PENDING
+    order_type: OrderType = OrderType.DINE_IN
+    tracking_number: Optional[str] = Field(None, description="Tracking number for takeout/delivery orders")
+    notes: Optional[str] = Field(None, description="Special instructions")
+    
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
 
 class OrderUpdate(BaseModel):

@@ -49,16 +49,49 @@ def generate_tracking_number(order_type: model.OrderType) -> str:
 
 
 def create(db: Session, request):
-    check = db.query(check_model.Check).filter(check_model.Check.id == request.check_id).first()
+    # determine if we need to create a virtual check for online orders
+    check_id = request.check_id
+    if check_id is None and request.order_type.value in ["takeout", "delivery"]:
+        # auto-create virtual check for online orders
+        virtual_check = check_model.Check(
+            session_id=None,  # virtual checks have no session
+            is_virtual=True,
+            subtotal=0.00,
+            tax_amount=0.00,
+            tip_amount=0.00,
+            total_amount=0.00
+        )
+        
+        try:
+            db.add(virtual_check)
+            db.commit()
+            db.refresh(virtual_check)
+            check_id = virtual_check.id
+        except SQLAlchemyError as e:
+            error = str(e.__dict__['orig'])
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to create virtual check: {error}")
+    
+    elif check_id is None:
+        # dine-in orders must have a check_id provided
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="check_id is required for dine-in orders"
+        )
+    
+    # validate the check exists
+    check = db.query(check_model.Check).filter(check_model.Check.id == check_id).first()
     if not check:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Check not found")
     
+    # generate tracking number for online orders if not provided
     tracking_number = request.tracking_number
-    if not tracking_number and request.order_type in [model.OrderType.TAKEOUT, model.OrderType.DELIVERY]:
-        tracking_number = generate_tracking_number(request.order_type)
+    if not tracking_number and request.order_type.value in ["takeout", "delivery"]:
+        # convert schema enum to model enum for generate_tracking_number function
+        model_order_type = model.OrderType.TAKEOUT if request.order_type.value == "takeout" else model.OrderType.DELIVERY
+        tracking_number = generate_tracking_number(model_order_type)
     
     new_order = model.Order(
-        check_id=request.check_id,
+        check_id=check_id,
         customer_id=request.customer_id,
         promo_id=request.promo_id,
         status=request.status,
