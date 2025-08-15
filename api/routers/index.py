@@ -7,11 +7,9 @@ from . import (
     menu,
     payment_method,
     customers,
-    staff_actions,
     administrator_actions,
     reviews,
     promotions,
-    customer_actions,
     analytics,
     staff,
     auth,
@@ -20,8 +18,6 @@ from . import (
 )
 
 def load_routes(app):
-    app.include_router(customer_actions.router)
-    app.include_router(staff_actions.router)
     app.include_router(analytics.router)
     app.include_router(administrator_actions.router)
     app.include_router(orders.router)
