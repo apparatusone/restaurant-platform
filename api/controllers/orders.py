@@ -2,6 +2,12 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, Response
 from ..models import orders as model
 from ..models import checks as check_model
+from ..utils.errors import (
+    handle_sqlalchemy_error,
+    raise_not_found,
+    raise_validation_error,
+    raise_status_transition_error
+)
 from sqlalchemy.exc import SQLAlchemyError
 import random
 import string
@@ -68,20 +74,16 @@ def create(db: Session, request):
             db.refresh(virtual_check)
             check_id = virtual_check.id
         except SQLAlchemyError as e:
-            error = str(e.__dict__['orig'])
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to create virtual check: {error}")
+            handle_sqlalchemy_error(e).raise_exception()
     
     elif check_id is None:
         # dine-in orders must have a check_id provided
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="check_id is required for dine-in orders"
-        )
+        raise_validation_error("check_id is required for dine-in orders")
     
     # validate the check exists
     check = db.query(check_model.Check).filter(check_model.Check.id == check_id).first()
     if not check:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Check not found")
+        raise_not_found("Check", check_id)
     
     # generate tracking number for online orders if not provided
     tracking_number = request.tracking_number
@@ -105,8 +107,7 @@ def create(db: Session, request):
         db.commit()
         db.refresh(new_order)
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        handle_sqlalchemy_error(e).raise_exception()
 
     return new_order
 
@@ -115,8 +116,7 @@ def read_all(db: Session):
     try:
         result = db.query(model.Order).all()
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        handle_sqlalchemy_error(e).raise_exception()
     return result
 
 
@@ -124,10 +124,9 @@ def read_one(db: Session, order_id):
     try:
         order = db.query(model.Order).filter(model.Order.id == order_id).first()
         if not order:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+            raise_not_found("Order", order_id)
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        handle_sqlalchemy_error(e).raise_exception()
     return order
 
 
@@ -135,7 +134,7 @@ def get_order_status_info(db: Session, order_id: int):
     try:
         order = db.query(model.Order).filter(model.Order.id == order_id).first()
         if not order:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+            raise_not_found("Order", order_id)
         
         valid_next_statuses = get_valid_next_statuses(order.status)
         
@@ -145,16 +144,14 @@ def get_order_status_info(db: Session, order_id: int):
             "valid_next_states": [s.value for s in valid_next_statuses]
         }
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        handle_sqlalchemy_error(e).raise_exception()
 
 
 def read_by_check(db: Session, check_id):
     try:
         orders = db.query(model.Order).filter(model.Order.check_id == check_id).all()
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        handle_sqlalchemy_error(e).raise_exception()
     return orders
 
 
@@ -165,10 +162,9 @@ def read_one_in_check(db: Session, check_id, order_id):
             model.Order.check_id == check_id
         ).first()
         if not order:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found in this check")
+            raise_not_found("Order", f"{order_id} in check {check_id}")
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        handle_sqlalchemy_error(e).raise_exception()
     return order
 
 
@@ -182,8 +178,7 @@ def get_kitchen_orders(db: Session):
             ])
         ).all()
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        handle_sqlalchemy_error(e).raise_exception()
     return orders
 
 
@@ -195,8 +190,7 @@ def get_delivery_orders(db: Session):
             ])
         ).all()
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        handle_sqlalchemy_error(e).raise_exception()
     return orders
 
 
@@ -208,8 +202,7 @@ def get_pickup_orders(db: Session):
             ])
         ).all()
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        handle_sqlalchemy_error(e).raise_exception()
     return orders
 
 
@@ -217,19 +210,15 @@ def update_status(db: Session, order_id: int, new_status: model.OrderStatus):
     try:
         order = db.query(model.Order).filter(model.Order.id == order_id).first()
         if not order:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+            raise_not_found("Order", order_id)
         
         # validate status
         if not validate_status_transition(order.status, new_status):
             valid_statuses = get_valid_next_statuses(order.status)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "error": "Invalid status transition",
-                    "current_status": order.status.value,
-                    "requested_status": new_status.value,
-                    "valid_next_states": [s.value for s in valid_statuses]
-                }
+            raise_status_transition_error(
+                order.status.value,
+                new_status.value,
+                [s.value for s in valid_statuses]
             )
         
         order.status = new_status
@@ -242,15 +231,14 @@ def update_status(db: Session, order_id: int, new_status: model.OrderStatus):
     except HTTPException:
         raise
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        handle_sqlalchemy_error(e).raise_exception()
 
 
 def update(db: Session, order_id, request):
     try:
         order = db.query(model.Order).filter(model.Order.id == order_id)
         if not order.first():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+            raise_not_found("Order", order_id)
         
         update_data = request.dict(exclude_unset=True)
         
@@ -260,14 +248,10 @@ def update(db: Session, order_id, request):
             new_status = update_data['status']
             if not validate_status_transition(current_order.status, new_status):
                 valid_statuses = get_valid_next_statuses(current_order.status)
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail={
-                        "error": "Invalid status transition",
-                        "current_status": current_order.status.value,
-                        "requested_status": new_status.value,
-                        "valid_next_states": [s.value for s in valid_statuses]
-                    }
+                raise_status_transition_error(
+                    current_order.status.value,
+                    new_status.value,
+                    [s.value for s in valid_statuses]
                 )
         
         order.update(update_data, synchronize_session=False)
@@ -275,8 +259,7 @@ def update(db: Session, order_id, request):
     except HTTPException:
         raise
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        handle_sqlalchemy_error(e).raise_exception()
     return order.first()
 
 
@@ -284,10 +267,9 @@ def delete(db: Session, order_id):
     try:
         order = db.query(model.Order).filter(model.Order.id == order_id)
         if not order.first():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+            raise_not_found("Order", order_id)
         order.delete(synchronize_session=False)
         db.commit()
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        handle_sqlalchemy_error(e).raise_exception()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

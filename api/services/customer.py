@@ -4,6 +4,12 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from typing import Optional
+from sqlalchemy.exc import SQLAlchemyError
+from ..utils.errors import (
+    handle_sqlalchemy_error,
+    raise_not_found,
+    DatabaseError
+)
 from ..models.menu_items import MenuItem
 from ..models.menu_item_ingredients import MenuItemIngredient
 from ..models.resources import Resource
@@ -122,7 +128,7 @@ def get_menu_item_by_name(db: Session, item_name: str):
     ).first()
     
     if not menu_item:
-        raise HTTPException(status_code=404, detail=f"Menu item '{item_name}' not found")
+        raise_not_found("Menu item", item_name)
     
     # Check if the item is available (has sufficient ingredients)
     ingredients = db.query(MenuItemIngredient).filter(
@@ -222,7 +228,7 @@ def add_promo_code(db: Session, order_id: int, promo_code: str):
     promo = db.query(Promotion).filter(Promotion.code == promo_code).first()
     
     if not promo:
-        raise HTTPException(status_code=404, detail="Promo code not found.")
+        raise_not_found("Promo code", promo_code)
     
     # check if promo expired
     if promo.expiration_date and promo.expiration_date < datetime.now():
@@ -231,7 +237,7 @@ def add_promo_code(db: Session, order_id: int, promo_code: str):
     # check that the order exists
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found.")
+        raise_not_found("Order", order_id)
     
     order_update = OrderUpdate(promo_id=promo.id)
     updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
@@ -293,37 +299,44 @@ def update_raw_ingredients(db: Session, order_id: int):
     from ..models.order_details import OrderDetail
     from ..models.menu_item_ingredients import MenuItemIngredient
     from ..models.resources import Resource
-    from fastapi import HTTPException
     
     order_details = db.query(OrderDetail).filter(OrderDetail.order_id == order_id).all()
     
     if not order_details:
-        raise HTTPException(status_code=404, detail="No items found in order")
+        raise_not_found("Order items", order_id)
     
-    for detail in order_details:
-        menu_item_id = detail.menu_item_id
-        quantity_ordered = detail.amount
-        
-        required_ingredients = db.query(MenuItemIngredient).filter(
-            MenuItemIngredient.menu_item_id == menu_item_id
-        ).all()
-        
-        # update each ingredient in  stock
-        for ingredient in required_ingredients:
-            resource = db.query(Resource).filter(Resource.id == ingredient.resource_id).first()
+    try:
+        for detail in order_details:
+            menu_item_id = detail.menu_item_id
+            quantity_ordered = detail.amount
             
-            if resource:
-                total_needed = ingredient.amount * quantity_ordered
+            required_ingredients = db.query(MenuItemIngredient).filter(
+                MenuItemIngredient.menu_item_id == menu_item_id
+            ).all()
+            
+            # update each ingredient in  stock
+            for ingredient in required_ingredients:
+                resource = db.query(Resource).filter(Resource.id == ingredient.resource_id).first()
                 
-                if resource.amount < total_needed:
-                    raise HTTPException(
-                        status_code=400, 
-                        detail=f"Insufficient {resource.item} inventory. Need {total_needed}, have {resource.amount}"
-                    )
-                
-                resource.amount -= total_needed
-    
-    db.commit()
+                if resource:
+                    total_needed = ingredient.amount * quantity_ordered
+                    
+                    if resource.amount < total_needed:
+                        from ..utils.errors import ValidationError
+                        ValidationError(
+                            f"Insufficient {resource.item} inventory. Need {total_needed}, have {resource.amount}"
+                        ).raise_exception()
+                    
+                    resource.amount -= total_needed
+        
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        handle_sqlalchemy_error(e).raise_exception()
+    except Exception:
+        db.rollback()
+        DatabaseError("Failed to update inventory").raise_exception()
+        
     return True
 
 
@@ -346,7 +359,7 @@ def checkout(db: Session, order_id: int, response=None):
     # Get the order
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+        raise_not_found("Order", order_id)
 
     # first check if the order can be made (has enough ingredients)
     # this is a second check if 2 customers are ordering at the same time
@@ -389,15 +402,19 @@ def checkout(db: Session, order_id: int, response=None):
             order.payment.status = PaymentStatus.COMPLETED
             db.commit()
             
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update order payment status: {str(e)}")
+    except SQLAlchemyError as e:
+        handle_sqlalchemy_error(e).raise_exception()
+    except Exception:
+        DatabaseError("Failed to update order payment status").raise_exception()
 
     # change order status
     try:
         order_update = OrderUpdate(status=OrderStatus.IN_PROGRESS)
         updated_order = order_controller.update(db=db, request=order_update, item_id=order_id)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update order status to in progress: {str(e)}")
+    except SQLAlchemyError as e:
+        handle_sqlalchemy_error(e).raise_exception()
+    except Exception:
+        DatabaseError("Failed to update order status").raise_exception()
 
     # update resources
     if not update_raw_ingredients(db, order_id):
@@ -407,8 +424,10 @@ def checkout(db: Session, order_id: int, response=None):
     try:
         order_update = OrderUpdate(order_date=datetime.now())
         order_controller.update(db=db, request=order_update, item_id=order_id)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update order date: {str(e)}")
+    except SQLAlchemyError as e:
+        handle_sqlalchemy_error(e).raise_exception()
+    except Exception:
+        DatabaseError("Failed to update order date").raise_exception()
 
     # clear the browser cookie after successful checkout
     if response:
@@ -450,8 +469,10 @@ def checkout(db: Session, order_id: int, response=None):
                 order_update = OrderUpdate(tracking_number=tracking_number)
                 updated_order = order_controller.update(db=db, order_id=order_id, request=order_update)
                 db.refresh(order)
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to update tracking number: {str(e)}")
+            except SQLAlchemyError as e:
+                handle_sqlalchemy_error(e).raise_exception()
+            except Exception:
+                DatabaseError("Failed to update tracking number").raise_exception()
         else:
             tracking_number = order.tracking_number
     
@@ -477,7 +498,7 @@ def get_tracking_information(db: Session, tracking_number: str):
     order = db.query(Order).filter(Order.tracking_number == tracking_number).first()
     
     if not order:
-        raise HTTPException(status_code=404, detail="Tracking number not found")
+        raise_not_found("Tracking number", tracking_number)
     
     return {
         "tracking_number": tracking_number,

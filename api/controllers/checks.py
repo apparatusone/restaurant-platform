@@ -1,10 +1,18 @@
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 from fastapi import HTTPException, status
 from datetime import datetime
 from decimal import Decimal
 from ..models.checks import Check, CheckStatus
+from ..models.orders import Order
+from ..models.order_details import OrderDetail
 from ..models.table_sessions import TableSession
 from ..schemas.checks import CheckCreate, CheckUpdate
+from ..utils.errors import (
+    raise_not_found,
+    raise_validation_error,
+    raise_status_transition_error
+)
 
 
 def create(db: Session, request: CheckCreate):
@@ -12,26 +20,14 @@ def create(db: Session, request: CheckCreate):
     if not request.is_virtual and request.session_id:
         session = db.query(TableSession).filter(TableSession.id == request.session_id).first()
         if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Session with id {request.session_id} not found"
-            )
+            raise_not_found("Session", request.session_id)
         
         if session.closed_at:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot create check for closed session"
-            )
+            raise_validation_error("Cannot create check for closed session")
     elif not request.is_virtual and not request.session_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Non-virtual checks must have a session_id"
-        )
+        raise_validation_error("Non-virtual checks must have a session_id")
     elif request.is_virtual and request.session_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Virtual checks cannot have a session_id"
-        )
+        raise_validation_error("Virtual checks cannot have a session_id")
     
     new_check = Check(
         session_id=request.session_id,
@@ -55,10 +51,7 @@ def read_all(db: Session):
 def read_one(db: Session, check_id: int):
     check = db.query(Check).options(joinedload(Check.session)).filter(Check.id == check_id).first()
     if not check:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Check with id {check_id} not found"
-        )
+        raise_not_found("Check", check_id)
     return check
 
 
@@ -70,10 +63,7 @@ def read_by_session(db: Session, session_id: int):
 def update(db: Session, check_id: int, request: CheckUpdate):
     check = db.query(Check).filter(Check.id == check_id).first()
     if not check:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Check with id {check_id} not found"
-        )
+        raise_not_found("Check", check_id)
     
     update_data = request.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -92,18 +82,16 @@ def update(db: Session, check_id: int, request: CheckUpdate):
 
 # change check status and submitted time
 def submit_check(db: Session, check_id: int):
+    """Submit check for payment - works for both virtual and table checks"""
     check = db.query(Check).filter(Check.id == check_id).first()
     if not check:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Check with id {check_id} not found"
-        )
+        raise_not_found("Check", check_id)
     
     if check.status != CheckStatus.OPEN:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Check is already {check.status.value}"
-        )
+        raise_validation_error(f"Check is already {check.status.value}")
+    
+    # update totals before submitting
+    update_check_totals(db, check_id)
     
     check.status = CheckStatus.SUBMITTED
     check.submitted_at = datetime.utcnow()
@@ -114,18 +102,16 @@ def submit_check(db: Session, check_id: int):
 
 
 def process_payment(db: Session, check_id: int, tip_amount: Decimal = None):
+    """Process payment for check - works for both virtual and table checks"""
     check = db.query(Check).filter(Check.id == check_id).first()
     if not check:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Check with id {check_id} not found"
-        )
+        raise_not_found("Check", check_id)
     
     if check.status not in [CheckStatus.SUBMITTED, CheckStatus.PAYMENT_PENDING]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Check must be submitted before payment. Current status: {check.status.value}"
-        )
+        raise_validation_error(f"Check must be submitted before payment. Current status: {check.status.value}")
+    
+    # update totals to ensure accuracy
+    update_check_totals(db, check_id)
     
     if tip_amount is not None:
         check.tip_amount = tip_amount
@@ -142,16 +128,10 @@ def process_payment(db: Session, check_id: int, tip_amount: Decimal = None):
 def delete(db: Session, check_id: int):
     check = db.query(Check).filter(Check.id == check_id).first()
     if not check:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Check with id {check_id} not found"
-        )
+        raise_not_found("Check", check_id)
     
     if check.status in [CheckStatus.SUBMITTED, CheckStatus.PAYMENT_PENDING, CheckStatus.CLOSED]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot delete submitted or paid check"
-        )
+        raise_validation_error("Cannot delete submitted or paid check")
     
     db.delete(check)
     db.commit()

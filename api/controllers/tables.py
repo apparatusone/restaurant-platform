@@ -2,15 +2,17 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from ..models.tables import Table
 from ..schemas.tables import TableCreate, TableUpdate
+from ..utils.errors import (
+    raise_not_found,
+    raise_validation_error,
+    raise_conflict_error
+)
 
 
 def create(db: Session, request: TableCreate):
     existing_table = db.query(Table).filter(Table.code == request.code).first()
     if existing_table:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Table with code '{request.code}' already exists"
-        )
+        raise_conflict_error(f"Table with code '{request.code}' already exists")
     
     new_table = Table(
         code=request.code,
@@ -33,39 +35,27 @@ def read_all(db: Session):
 def read_one(db: Session, table_id: int):
     table = db.query(Table).filter(Table.id == table_id).first()
     if not table:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Table with id {table_id} not found"
-        )
+        raise_not_found("Table", table_id)
     return table
 
 
 def read_by_code(db: Session, table_code: str):
     table = db.query(Table).filter(Table.code == table_code).first()
     if not table:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Table with code '{table_code}' not found"
-        )
+        raise_not_found("Table", table_code)
     return table
 
 
 def update(db: Session, table_id: int, request: TableUpdate):
     table = db.query(Table).filter(Table.id == table_id).first()
     if not table:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Table with id {table_id} not found"
-        )
+        raise_not_found("Table", table_id)
     
     # check for code conflict
     if request.code and request.code != table.code:
         existing_table = db.query(Table).filter(Table.code == request.code).first()
         if existing_table:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Table with code '{request.code}' already exists"
-            )
+            raise_conflict_error(f"Table with code '{request.code}' already exists")
     
     update_data = request.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -79,16 +69,10 @@ def update(db: Session, table_id: int, request: TableUpdate):
 def delete(db: Session, table_id: int):
     table = db.query(Table).filter(Table.id == table_id).first()
     if not table:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Table with id {table_id} not found"
-        )
+        raise_not_found("Table", table_id)
     
     if table.current_session_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot delete table with active session"
-        )
+        raise_validation_error("Cannot delete table with active session")
     
     db.delete(table)
     db.commit()
