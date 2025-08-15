@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional, Annotated
 from ..services import customer as customer_services
-from ..schemas import menu_items as schema
+
 from ..schemas import order_details as order_detail_schema
 from ..schemas import payment_method as payment_schema
 from ..schemas import customers as customer_schema
@@ -20,22 +20,6 @@ router = APIRouter(
     tags=['Customer Actions'],
     prefix="/customer"
 )
-
-
-@router.get("/menu", response_model=list[schema.MenuItems])
-def get_available_menu(filter_category: Optional[customer_services.FilterCategory] = None, db: Session = Depends(get_db)):
-    """
-    Get menu items based on availability
-    """
-    return customer_services.get_menu(db=db, filter_category=filter_category)
-
-
-@router.get("/menu/{item_name}", response_model=schema.MenuItems)
-def get_menu_item_by_name(item_name: str, db: Session = Depends(get_db)):
-    """
-    Search for a particular menu item by name
-    """
-    return customer_services.get_menu_item_by_name(db=db, item_name=item_name)
 
 
 @router.get("/track-order/{tracking_number}")
