@@ -90,11 +90,21 @@ def update(db: Session, item_id, request):
 
 def delete(db: Session, item_id):
     try:
-        item = db.query(model.OrderItem).filter(model.OrderItem.id == item_id)
-        if not item.first():
+        item = db.query(model.OrderItem).filter(model.OrderItem.id == item_id).first()
+        if not item:
             raise_not_found("Order item", item_id)
-        item.delete(synchronize_session=False)
+        
+        # prevent deletion of sent/ready
+        if item.status in [model.OrderItemStatus.SENT, model.OrderItemStatus.READY]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot delete item with status '{item.status.value}'. Only unsent items can be deleted."
+            )
+        
+        db.delete(item)
         db.commit()
+    except HTTPException:
+        raise
     except SQLAlchemyError as e:
         handle_sqlalchemy_error(e).raise_exception()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
