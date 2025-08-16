@@ -34,6 +34,15 @@ class OrderItemUpdate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
 
+class CheckItemCreate(BaseModel):
+    """Schema for adding menu items directly to a check"""
+    menu_item_id: int = Field(..., description="FK -> menu_items.id")
+    quantity: int = Field(..., ge=1, description="Quantity ordered")
+    special_instructions: Optional[str] = Field(None, description="Special preparation notes")
+    
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+
 class OrderItem(OrderItemBase):
     id: int
     line_total: Decimal = Field(..., description="quantity * unit_price")

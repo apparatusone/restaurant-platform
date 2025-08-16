@@ -98,3 +98,62 @@ def delete(db: Session, item_id):
     except SQLAlchemyError as e:
         handle_sqlalchemy_error(e).raise_exception()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def add_item_to_check(db: Session, check_id: int, request):
+    """Add a menu item directly to a check by creating an order if needed"""
+    from ..models import checks as check_model
+    from ..models import orders as order_model
+    from ..models import menu_items as menu_model
+    
+    check = db.query(check_model.Check).filter(check_model.Check.id == check_id).first()
+    if not check:
+        raise_not_found("Check", check_id)
+    
+    # validate check status
+    valid_statuses = [check_model.CheckStatus.OPEN, check_model.CheckStatus.SENT, check_model.CheckStatus.READY]
+    if check.status not in valid_statuses:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot add items to check with status '{check.status.value}'. Check must be open, sent, or ready."
+        )
+    
+    menu_item = db.query(menu_model.MenuItem).filter(menu_model.MenuItem.id == request.menu_item_id).first()
+    if not menu_item:
+        raise_not_found("Menu item", request.menu_item_id)
+    
+    try:
+        # find or create an order for this check
+        order = db.query(order_model.Order).filter(order_model.Order.check_id == check_id).first()
+        
+        if not order:
+            # create a new order
+            order = order_model.Order(
+                check_id=check_id,
+                status=order_model.OrderStatus.PENDING,
+                order_type=order_model.OrderType.DINE_IN  # Default for table orders
+            )
+            db.add(order)
+            db.commit()
+            db.refresh(order)
+        
+        line_total = Decimal(str(menu_item.price)) * request.quantity
+        
+        new_item = model.OrderItem(
+            order_id=order.id,
+            menu_item_id=request.menu_item_id,
+            quantity=request.quantity,
+            unit_price=menu_item.price,
+            line_total=line_total,
+            special_instructions=request.special_instructions,
+            status=model.OrderItemStatus.UNSENT
+        )
+        
+        db.add(new_item)
+        db.commit()
+        db.refresh(new_item)
+        
+        return new_item
+        
+    except SQLAlchemyError as e:
+        handle_sqlalchemy_error(e).raise_exception()

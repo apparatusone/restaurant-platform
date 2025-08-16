@@ -4,8 +4,10 @@ from decimal import Decimal
 from ..dependencies.database import get_db
 from ..schemas import checks as schema
 from ..schemas import orders as order_schema
+from ..schemas import order_items as order_item_schema
 from ..controllers import checks as controller
 from ..controllers import orders as order_controller
+from ..controllers import order_items as order_item_controller
 
 router = APIRouter(prefix="/checks", tags=["checks"])
 
@@ -76,3 +78,9 @@ def get_orders_for_check(check_id: int, db: Session = Depends(get_db)):
 @router.get("/{check_id}/orders/{order_id}", response_model=order_schema.Order)
 def get_order_in_check(check_id: int, order_id: int, db: Session = Depends(get_db)):
     return order_controller.read_one_in_check(db=db, check_id=check_id, order_id=order_id)
+
+
+@router.post("/{check_id}/items", response_model=order_item_schema.OrderItem)
+def add_item_to_check(check_id: int, request: order_item_schema.CheckItemCreate, db: Session = Depends(get_db)):
+    """Add a menu item directly to a check (Requirement 3.1, 3.2)"""
+    return order_item_controller.add_item_to_check(db=db, check_id=check_id, request=request)
