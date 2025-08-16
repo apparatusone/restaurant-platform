@@ -45,11 +45,20 @@ def create(db: Session, request: CheckCreate):
 
 
 def read_all(db: Session):
-    return db.query(Check).options(joinedload(Check.session)).all()
+    """Get all checks with session info - handles both virtual and table checks"""
+    return db.query(Check).options(
+        joinedload(Check.session),
+        joinedload(Check.orders)
+    ).all()
 
 
 def read_one(db: Session, check_id: int):
-    check = db.query(Check).options(joinedload(Check.session)).filter(Check.id == check_id).first()
+    """Get single check with full details - works for both virtual and table checks"""
+    check = db.query(Check).options(
+        joinedload(Check.session),
+        joinedload(Check.orders).joinedload(Order.order_items),
+        joinedload(Check.payments)
+    ).filter(Check.id == check_id).first()
     if not check:
         raise_not_found("Check", check_id)
     return check
@@ -70,9 +79,9 @@ def update(db: Session, check_id: int, request: CheckUpdate):
         setattr(check, field, value)
     
     # timestamps
-    if request.status == CheckStatus.SUBMITTED and not check.submitted_at:
+    if request.status == CheckStatus.SENT and not check.submitted_at:
         check.submitted_at = datetime.utcnow()
-    elif request.status == CheckStatus.CLOSED and not check.paid_at:
+    elif request.status == CheckStatus.PAID and not check.paid_at:
         check.paid_at = datetime.utcnow()
     
     db.commit()
