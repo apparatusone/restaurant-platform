@@ -167,3 +167,38 @@ def add_item_to_check(db: Session, check_id: int, request):
         
     except SQLAlchemyError as e:
         handle_sqlalchemy_error(e).raise_exception()
+
+
+def mark_item_ready(db: Session, item_id: int):
+    """Mark a sent order item as ready"""
+    from ..models.checks import Check
+    from ..models.orders import Order
+    from ..controllers.checks import check_all_items_ready
+    
+    try:
+        item = db.query(model.OrderItem).filter(model.OrderItem.id == item_id).first()
+        if not item:
+            raise_not_found("Order item", item_id)
+        
+        # validate that item is in 'sent' status
+        if item.status != model.OrderItemStatus.SENT:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot mark item as ready. Item status is '{item.status.value}', must be 'sent'."
+            )
+        
+        item.status = model.OrderItemStatus.READY
+        db.commit()
+        db.refresh(item)
+        
+        # check if all items in the check are now ready and update check status
+        order = db.query(Order).filter(Order.id == item.order_id).first()
+        if order:
+            check_all_items_ready(db, order.check_id)
+        
+        return item
+        
+    except HTTPException:
+        raise
+    except SQLAlchemyError as e:
+        handle_sqlalchemy_error(e).raise_exception()

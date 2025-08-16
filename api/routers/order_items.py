@@ -33,3 +33,8 @@ def update(item_id: int, request: schema.OrderItemUpdate, db: Session = Depends(
 @router.delete("/{item_id}")
 def delete(item_id: int, db: Session = Depends(get_db)):
     return controller.delete(db=db, item_id=item_id)
+
+
+@router.put("/{item_id}/ready", response_model=schema.OrderItem)
+def mark_item_ready(item_id: int, db: Session = Depends(get_db)):
+    return controller.mark_item_ready(db=db, item_id=item_id)
