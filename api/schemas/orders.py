@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
-from .order_details import OrderDetail
+from .order_items import OrderItem
 
 
 class OrderType(str, Enum):
@@ -68,6 +68,6 @@ class Order(OrderBase):
     order_date: datetime
     created_at: datetime
     updated_at: datetime
-    order_details: Optional[list[OrderDetail]] = None
+    order_items: Optional[list[OrderItem]] = None
     
     model_config = ConfigDict(from_attributes=True)

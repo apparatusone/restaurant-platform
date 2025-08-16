@@ -4,7 +4,7 @@ from decimal import Decimal
 from datetime import datetime
 
 
-class OrderDetailBase(BaseModel):
+class OrderItemBase(BaseModel):
     order_id: int = Field(..., description="FK -> orders.id")
     menu_item_id: int = Field(..., description="FK -> menu_items.id")
     quantity: int = Field(..., ge=1, description="Quantity ordered")
@@ -14,18 +14,18 @@ class OrderDetailBase(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
 
-class OrderDetailCreate(OrderDetailBase):
+class OrderItemCreate(OrderItemBase):
     pass
 
 
-class OrderDetailUpdate(BaseModel):
+class OrderItemUpdate(BaseModel):
     quantity: Optional[int] = Field(None, ge=1)
     special_instructions: Optional[str] = None
     
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
 
-class OrderDetail(OrderDetailBase):
+class OrderItem(OrderItemBase):
     id: int
     line_total: Decimal = Field(..., description="quantity * unit_price")
     created_at: datetime

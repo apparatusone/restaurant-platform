@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, Response
-from ..models import order_details as model
+from ..models import order_items as model
 from ..models import orders as order_model
 from ..models import menu_items as menu_model
 from ..utils.errors import (
@@ -23,7 +23,7 @@ def create(db: Session, request):
     # initial total
     line_total = Decimal(str(menu_item.price)) * request.quantity
 
-    new_detail = model.OrderDetail(
+    new_item = model.OrderItem(
         order_id=request.order_id,
         menu_item_id=request.menu_item_id,
         quantity=request.quantity,
@@ -33,18 +33,18 @@ def create(db: Session, request):
     )
 
     try:
-        db.add(new_detail)
+        db.add(new_item)
         db.commit()
-        db.refresh(new_detail)
+        db.refresh(new_item)
     except SQLAlchemyError as e:
         handle_sqlalchemy_error(e).raise_exception()
 
-    return new_detail
+    return new_item
 
 
 def read_all(db: Session):
     try:
-        result = db.query(model.OrderDetail).all()
+        result = db.query(model.OrderItem).all()
     except SQLAlchemyError as e:
         handle_sqlalchemy_error(e).raise_exception()
     return result
@@ -52,48 +52,48 @@ def read_all(db: Session):
 
 def read_by_order(db: Session, order_id):
     try:
-        details = db.query(model.OrderDetail).filter(model.OrderDetail.order_id == order_id).all()
+        items = db.query(model.OrderItem).filter(model.OrderItem.order_id == order_id).all()
     except SQLAlchemyError as e:
         handle_sqlalchemy_error(e).raise_exception()
-    return details
+    return items
 
 
-def read_one(db: Session, detail_id):
+def read_one(db: Session, item_id):
     try:
-        detail = db.query(model.OrderDetail).filter(model.OrderDetail.id == detail_id).first()
-        if not detail:
-            raise_not_found("Order detail", detail_id)
+        item = db.query(model.OrderItem).filter(model.OrderItem.id == item_id).first()
+        if not item:
+            raise_not_found("Order item", item_id)
     except SQLAlchemyError as e:
         handle_sqlalchemy_error(e).raise_exception()
-    return detail
+    return item
 
 
-def update(db: Session, detail_id, request):
+def update(db: Session, item_id, request):
     try:
-        detail = db.query(model.OrderDetail).filter(model.OrderDetail.id == detail_id)
-        if not detail.first():
-            raise_not_found("Order detail", detail_id)
+        item = db.query(model.OrderItem).filter(model.OrderItem.id == item_id)
+        if not item.first():
+            raise_not_found("Order item", item_id)
         
         update_data = request.dict(exclude_unset=True)
         
         # update total
         if 'quantity' in update_data:
-            current_detail = detail.first()
-            update_data['line_total'] = current_detail.unit_price * update_data['quantity']
+            current_item = item.first()
+            update_data['line_total'] = current_item.unit_price * update_data['quantity']
         
-        detail.update(update_data, synchronize_session=False)
+        item.update(update_data, synchronize_session=False)
         db.commit()
     except SQLAlchemyError as e:
         handle_sqlalchemy_error(e).raise_exception()
-    return detail.first()
+    return item.first()
 
 
-def delete(db: Session, detail_id):
+def delete(db: Session, item_id):
     try:
-        detail = db.query(model.OrderDetail).filter(model.OrderDetail.id == detail_id)
-        if not detail.first():
-            raise_not_found("Order detail", detail_id)
-        detail.delete(synchronize_session=False)
+        item = db.query(model.OrderItem).filter(model.OrderItem.id == item_id)
+        if not item.first():
+            raise_not_found("Order item", item_id)
+        item.delete(synchronize_session=False)
         db.commit()
     except SQLAlchemyError as e:
         handle_sqlalchemy_error(e).raise_exception()

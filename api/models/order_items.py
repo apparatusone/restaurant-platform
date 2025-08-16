@@ -4,8 +4,8 @@ from sqlalchemy.sql import func
 from ..dependencies.database import Base
 
 
-class OrderDetail(Base):
-    __tablename__ = "order_details"
+class OrderItem(Base):
+    __tablename__ = "order_items"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     order_id = Column(Integer, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
@@ -21,5 +21,5 @@ class OrderDetail(Base):
 
 
     # relationships
-    menu_item = relationship("MenuItem", back_populates="order_details")
-    order = relationship("Order", back_populates="order_details")
+    menu_item = relationship("MenuItem", back_populates="order_items")
+    order = relationship("Order", back_populates="order_items")

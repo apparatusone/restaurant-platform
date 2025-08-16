@@ -9,7 +9,7 @@ from api.config.restaurant import (
 )
 from api.dependencies.database import get_db
 from api.controllers.orders import read_one as get_order_by_id
-from api.controllers import order_details as order_detail_controller
+from api.controllers import order_items as order_item_controller
 
 SERVER_IP = "10.0.1.43"
 PORT = 9100
@@ -33,34 +33,34 @@ def get_order_items_for_receipt(order_id: int) -> list[tuple[str, float]]:
     Get order items formatted for receipt printing.
     Returns list of tuples: (formatted_item_name, price)
     """
-    from api.models.order_details import OrderDetail
+    from api.models.order_items import OrderItem
     from api.models.menu_items import MenuItem
     
     db = next(get_db())
     
-    # Query order details with menu item information
-    order_details = db.query(OrderDetail).join(MenuItem).filter(
-        OrderDetail.order_id == order_id
+    # Query order items with menu item information
+    order_items = db.query(OrderItem).join(MenuItem).filter(
+        OrderItem.order_id == order_id
     ).all()
     
     items = []
-    for detail in order_details:
+    for item in order_items:
         # format item name: "QUANTITY x ITEM_NAME"
-        item_name = detail.menu_item.name.upper()
+        item_name = item.menu_item.name.upper()
         
         # calculate max length for item name
         # Format: "QTY x ITEM_NAME" + space + "PRICE"
         # item, quantity, " x ", space, and price (up to 8 chars)
-        max_item_length = COLS - len(str(detail.amount)) - 3 - 1 - 8
+        max_item_length = COLS - len(str(item.quantity)) - 3 - 1 - 8
         
         # truncate item name
         if len(item_name) > max_item_length:
             item_name = item_name[:max_item_length-3] + "..."
         
-        formatted_name = f"{detail.amount} x {item_name}"
+        formatted_name = f"{item.quantity} x {item_name}"
         
         # Use the price from menu item (current price)
-        price = float(detail.menu_item.price)
+        price = float(item.menu_item.price)
         
         items.append((formatted_name, price))
     

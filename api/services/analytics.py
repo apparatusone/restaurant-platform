@@ -82,18 +82,18 @@ def get_dish_analytics_popularity(db: Session,
     from sqlalchemy import func
     from ..models.menu_items import MenuItem
     from ..models.orders import Order
-    from ..models.order_details import OrderDetail
+    from ..models.order_items import OrderItem
     
     # sum total quantity
-    order_count = func.sum(OrderDetail.amount).label("order_count")
+    order_count = func.sum(OrderItem.amount).label("order_count")
     
     query = (
         db.query(
             MenuItem.name.label("dish_name"),
             order_count,
         )
-        .outerjoin(OrderDetail, MenuItem.id == OrderDetail.menu_item_id)
-        .outerjoin(Order, OrderDetail.order_id == Order.id)
+        .outerjoin(OrderItem, MenuItem.id == OrderItem.menu_item_id)
+        .outerjoin(Order, OrderItem.order_id == Order.id)
         .group_by(MenuItem.id, MenuItem.name)
     )
     

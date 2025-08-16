@@ -1,6 +1,6 @@
 from . import (
     orders,
-    order_details,
+    order_items,
     resources,
     menu_item_ingredients,
     menu_items,

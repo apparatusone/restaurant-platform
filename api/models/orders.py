@@ -49,5 +49,5 @@ class Order(Base):
     check = relationship("Check", back_populates="orders")
     customer = relationship("Customer", back_populates="orders")
     promo = relationship("Promotion", back_populates="orders")
-    order_details = relationship("OrderDetail", back_populates="order", cascade="all, delete-orphan")
+    order_items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="order")

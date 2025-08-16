@@ -25,8 +25,8 @@ class MenuItem(Base):
         back_populates="menu_item",
         cascade="all, delete-orphan"
     )
-    order_details = relationship(
-        "OrderDetail",
+    order_items = relationship(
+        "OrderItem",
         back_populates="menu_item",
         cascade="all, delete-orphan"
     )

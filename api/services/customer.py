@@ -14,15 +14,15 @@ from ..models.menu_items import MenuItem
 from ..models.menu_item_ingredients import MenuItemIngredient
 from ..models.resources import Resource
 from ..schemas import orders as order_schema
-from ..schemas import order_details as order_detail_schema
+from ..schemas import order_items as order_item_schema
 from ..schemas import payment_method as payment_schema
 from ..schemas import customers as customer_schema
 from ..controllers import orders as order_controller
-from ..controllers import order_details as order_detail_controller
+from ..controllers import order_items as order_item_controller
 from ..controllers import payment_method as payment_controller
 from ..controllers import customers as customer_controller
 from ..schemas.payment_method import PaymentType
-from ..models.order_details import OrderDetail
+from ..models.order_items import OrderItem
 from ..models.menu_items import MenuItem
 from .print import print_receipt
 from ..models.orders import Order
@@ -43,23 +43,23 @@ def can_order_be_made(db: Session, order_id: int):
     returns true/false
     returns insufficient resources
     """
-    # Get all order details for this order
-    order_details = db.query(OrderDetail).filter(OrderDetail.order_id == order_id).all()
+    # Get all order items for this order
+    order_items = db.query(OrderItem).filter(OrderItem.order_id == order_id).all()
     
-    if not order_details:
+    if not order_items:
         return True, "Order is empty"
     
     total_ingredient_needs = {}
     
-    for order_detail in order_details:
+    for order_item in order_items:
         # get required ingredients
         ingredients = db.query(MenuItemIngredient).filter(
-            MenuItemIngredient.menu_item_id == order_detail.menu_item_id
+            MenuItemIngredient.menu_item_id == order_item.menu_item_id
         ).all()
         
         for ingredient in ingredients:
             resource_id = ingredient.resource_id
-            needed_amount = ingredient.amount * order_detail.amount
+            needed_amount = ingredient.amount * order_item.quantity
             
             if resource_id in total_ingredient_needs:
                 total_ingredient_needs[resource_id] += needed_amount
@@ -249,16 +249,16 @@ def calculate_order_total(db: Session, order_id: int) -> float:
     """
     Calculate the total amount for an order
     """
-    # Get all order details on an order
-    order_details = db.query(OrderDetail).join(MenuItem).filter(
-        OrderDetail.order_id == order_id
+    # Get all order items on an order
+    order_items = db.query(OrderItem).join(MenuItem).filter(
+        OrderItem.order_id == order_id
     ).all()
     
     total = Decimal('0.00')
     
-    for detail in order_details:
+    for item in order_items:
         # handle data types
-        item_total = Decimal(detail.amount) * detail.menu_item.price
+        item_total = Decimal(item.quantity) * item.menu_item.price
         total += item_total
     
     return float(round(total, 2))
@@ -296,19 +296,19 @@ def update_raw_ingredients(db: Session, order_id: int):
     Deduct raw ingredients based on order items
     """
     from ..models.orders import Order
-    from ..models.order_details import OrderDetail
+    from ..models.order_items import OrderItem
     from ..models.menu_item_ingredients import MenuItemIngredient
     from ..models.resources import Resource
     
-    order_details = db.query(OrderDetail).filter(OrderDetail.order_id == order_id).all()
+    order_items = db.query(OrderItem).filter(OrderItem.order_id == order_id).all()
     
-    if not order_details:
+    if not order_items:
         raise_not_found("Order items", order_id)
     
     try:
-        for detail in order_details:
-            menu_item_id = detail.menu_item_id
-            quantity_ordered = detail.amount
+        for item in order_items:
+            menu_item_id = item.menu_item_id
+            quantity_ordered = item.quantity
             
             required_ingredients = db.query(MenuItemIngredient).filter(
                 MenuItemIngredient.menu_item_id == menu_item_id

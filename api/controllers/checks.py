@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from ..models.checks import Check, CheckStatus
 from ..models.orders import Order
-from ..models.order_details import OrderDetail
+from ..models.order_items import OrderItem
 from ..models.table_sessions import TableSession
 from ..schemas.checks import CheckCreate, CheckUpdate
 from ..utils.errors import (
