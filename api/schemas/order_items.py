@@ -2,6 +2,13 @@ from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 from decimal import Decimal
 from datetime import datetime
+from enum import Enum
+
+
+class OrderItemStatus(str, Enum):
+    UNSENT = "unsent"
+    SENT = "sent"
+    READY = "ready"
 
 
 class OrderItemBase(BaseModel):
@@ -10,6 +17,7 @@ class OrderItemBase(BaseModel):
     quantity: int = Field(..., ge=1, description="Quantity ordered")
     unit_price: Decimal = Field(..., ge=0, description="Price per item at time of order")
     special_instructions: Optional[str] = Field(None, description="Special preparation notes")
+    status: OrderItemStatus = Field(OrderItemStatus.UNSENT, description="Current status of the order item")
     
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
@@ -21,6 +29,7 @@ class OrderItemCreate(OrderItemBase):
 class OrderItemUpdate(BaseModel):
     quantity: Optional[int] = Field(None, ge=1)
     special_instructions: Optional[str] = None
+    status: Optional[OrderItemStatus] = None
     
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 

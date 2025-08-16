@@ -1,7 +1,14 @@
-from sqlalchemy import Column, ForeignKey, Integer, Numeric, DateTime, Text
+from sqlalchemy import Column, ForeignKey, Integer, Numeric, DateTime, Text, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..dependencies.database import Base
+import enum
+
+
+class OrderItemStatus(enum.Enum):
+    UNSENT = "unsent"
+    SENT = "sent"
+    READY = "ready"
 
 
 class OrderItem(Base):
@@ -14,6 +21,7 @@ class OrderItem(Base):
     unit_price = Column(Numeric(10, 2), nullable=False)
     line_total = Column(Numeric(10, 2), nullable=False)
     special_instructions = Column(Text, nullable=True)
+    status = Column(Enum(OrderItemStatus, values_callable=lambda obj: [e.value for e in obj]), default=OrderItemStatus.UNSENT, nullable=False)
     
     # timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
