@@ -84,3 +84,9 @@ def get_order_in_check(check_id: int, order_id: int, db: Session = Depends(get_d
 def add_item_to_check(check_id: int, request: order_item_schema.CheckItemCreate, db: Session = Depends(get_db)):
     """Add a menu item directly to a check (Requirement 3.1, 3.2)"""
     return order_item_controller.add_item_to_check(db=db, check_id=check_id, request=request)
+
+
+@router.put("/{check_id}/send", response_model=schema.Check)
+def send_check_to_kitchen(check_id: int, db: Session = Depends(get_db)):
+    """Send all unsent items in a check to kitchen (Requirement 4.1, 4.2, 4.3)"""
+    return controller.send_check_to_kitchen(db=db, check_id=check_id)

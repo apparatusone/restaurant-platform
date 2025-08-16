@@ -335,3 +335,35 @@ def get_checks_by_order_type(db: Session, order_type: str = None):
         query = query.join(Order).filter(Order.order_type == OrderType(order_type))
     
     return query.all()
+
+
+def send_check_to_kitchen(db: Session, check_id: int):
+    """Send all unsent items in a check to kitchen"""
+    from ..models.order_items import OrderItem, OrderItemStatus
+    
+    check = db.query(Check).filter(Check.id == check_id).first()
+    if not check:
+        raise_not_found("Check", check_id)
+    
+    unsent_items = db.query(OrderItem).join(Order).filter(
+        Order.check_id == check_id,
+        OrderItem.status == OrderItemStatus.UNSENT
+    ).all()
+    
+    if not unsent_items:
+        raise_validation_error("No unsent items found in this check")
+    
+    # mark all unsent items as sent
+    for item in unsent_items:
+        item.status = OrderItemStatus.SENT
+    
+    # if check is open mark status as sent
+    if check.status == CheckStatus.OPEN:
+        check.status = CheckStatus.SENT
+        check.submitted_at = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(check)
+    return check
+
+
