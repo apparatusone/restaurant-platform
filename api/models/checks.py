@@ -6,8 +6,9 @@ import enum
 
 class CheckStatus(enum.Enum):
     OPEN = "open"
-    SUBMITTED = "submitted"
-    PAYMENT_PENDING = "payment_pending"
+    SENT = "sent"
+    READY = "ready"
+    PAID = "paid"
     CLOSED = "closed"
 
 class Check(Base):
@@ -24,7 +25,9 @@ class Check(Base):
     # virtual check flag for online orders
     is_virtual = Column(Boolean, default=False, nullable=False)
     
-    status = Column(Enum(CheckStatus), default=CheckStatus.OPEN, nullable=False)
+    # check status: open -> sent -> ready -> paid -> closed
+    # values_callable extracts enum string values for database
+    status = Column(Enum(CheckStatus, values_callable=lambda obj: [e.value for e in obj]), default=CheckStatus.OPEN, nullable=False)
     
     subtotal = Column(Numeric(10, 2), default=0.00)
     tax_amount = Column(Numeric(10, 2), default=0.00)

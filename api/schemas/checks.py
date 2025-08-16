@@ -7,8 +7,9 @@ from enum import Enum
 
 class CheckStatus(str, Enum):
     OPEN = "open"
-    SUBMITTED = "submitted"
-    PAYMENT_PENDING = "payment_pending"
+    SENT = "sent"
+    READY = "ready"
+    PAID = "paid"
     CLOSED = "closed"
 
 
