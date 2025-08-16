@@ -54,3 +54,10 @@ class SplitPaymentItem(BaseModel):
 
 class SplitPaymentRequest(BaseModel):
     payments: list[SplitPaymentItem]
+
+
+class CheckPaymentCreate(BaseModel):
+    """Schema for creating payments through the check endpoint"""
+    amount: Decimal
+    payment_type: PaymentType = PaymentType.CASH
+    card_number: Optional[str] = None

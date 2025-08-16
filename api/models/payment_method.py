@@ -26,8 +26,8 @@ class Payment(Base):
         order_id = Column(Integer, ForeignKey("orders.id", ondelete="CASCADE"), nullable=True)
         amount = Column(Numeric(10, 2), nullable=False)
         payment_date = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-        status = Column(Enum(PaymentStatus), default=PaymentStatus.PENDING, nullable=False)
-        payment_type = Column(Enum(PaymentType), nullable=False)
+        status = Column(Enum(PaymentStatus, values_callable=lambda obj: [e.value for e in obj]), default=PaymentStatus.PENDING, nullable=False)
+        payment_type = Column(Enum(PaymentType, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
         card_number = Column(String(20), nullable=True)
         
         # relationships

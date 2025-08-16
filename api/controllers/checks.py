@@ -367,3 +367,53 @@ def send_check_to_kitchen(db: Session, check_id: int):
     return check
 
 
+def create_payment_for_check(db: Session, check_id: int, request):
+    """Create payment for a check with business rule validation"""
+    from ..models.payment_method import Payment, PaymentType, PaymentStatus
+    
+    check = db.query(Check).filter(Check.id == check_id).first()
+    if not check:
+        raise_not_found("Check", check_id)
+    
+    if check.status != CheckStatus.READY:
+        raise_validation_error(f"Cannot process payment for check with status '{check.status.value}'. Check must be ready.")
+    
+    # validate amount
+    if request.amount <= 0:
+        raise_validation_error("Payment amount must be greater than 0")
+    
+    # check if it's already been paid
+    existing_payments = db.query(Payment).filter(
+        Payment.check_id == check_id,
+        Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+    ).all()
+    
+    total_existing = sum(payment.amount for payment in existing_payments)
+    
+    remaining_balance = check.total_amount - total_existing
+    if request.amount > remaining_balance:
+        raise_validation_error(f"Payment amount ({request.amount}) exceeds remaining balance ({remaining_balance})")
+    
+    payment_status = PaymentStatus.COMPLETED if request.payment_type == PaymentType.CASH else PaymentStatus.COMPLETED
+    
+    new_payment = Payment(
+        check_id=check_id,
+        amount=request.amount,
+        payment_type=request.payment_type,
+        status=payment_status,
+        card_number=request.card_number
+    )
+    
+    db.add(new_payment)
+    
+    # calc remaining
+    total_payments_after = total_existing + request.amount
+    if total_payments_after >= check.total_amount:
+        check.status = CheckStatus.PAID
+        check.paid_at = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(check)
+    return check
+
+
