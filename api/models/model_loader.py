@@ -4,9 +4,12 @@ from ..dependencies.database import engine
 
 
 def index():
+    # Create tables in dependency order
     staff.Base.metadata.create_all(engine)  # Staff first (referenced by table_sessions)
+    table_sessions.Base.metadata.create_all(engine)  # Sessions next (referenced by tables)
     tables.Base.metadata.create_all(engine)  # Tables (references sessions)
     checks.Base.metadata.create_all(engine)  # Checks (references sessions)
+    
     orders.Base.metadata.create_all(engine)
     order_items.Base.metadata.create_all(engine)
     resources.Base.metadata.create_all(engine)
