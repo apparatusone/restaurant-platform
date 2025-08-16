@@ -97,3 +97,9 @@ def send_check_to_kitchen(check_id: int, db: Session = Depends(get_db)):
 def create_payment_for_check(check_id: int, request: payment_schema.CheckPaymentCreate, db: Session = Depends(get_db)):
     """Create payment for a check"""
     return controller.create_payment_for_check(db=db, check_id=check_id, request=request)
+
+
+@router.put("/{check_id}/close", response_model=schema.Check)
+def close_check(check_id: int, db: Session = Depends(get_db)):
+    """Close a paid check"""
+    return controller.close_check(db=db, check_id=check_id)

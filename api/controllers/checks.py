@@ -417,3 +417,21 @@ def create_payment_for_check(db: Session, check_id: int, request):
     return check
 
 
+def close_check(db: Session, check_id: int):
+    """Close a paid check"""
+    check = db.query(Check).filter(Check.id == check_id).first()
+    if not check:
+        raise_not_found("Check", check_id)
+    
+    # onlya allow closing paid checks
+    if check.status != CheckStatus.PAID:
+        raise_validation_error(f"Cannot close check with status '{check.status.value}'. Check must be paid before closing.")
+    
+    check.status = CheckStatus.CLOSED
+    check.updated_at = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(check)
+    return check
+
+
