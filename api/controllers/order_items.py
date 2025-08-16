@@ -169,11 +169,34 @@ def add_item_to_check(db: Session, check_id: int, request):
         handle_sqlalchemy_error(e).raise_exception()
 
 
+def check_all_items_ready(db: Session, check_id: int):
+    """Check if all items in a check are ready and update check status accordingly"""
+    from ..models.checks import Check, CheckStatus
+    from ..models.orders import Order
+    
+    all_items = db.query(model.OrderItem).join(Order).filter(
+        Order.check_id == check_id
+    ).all()
+    
+    if not all_items:
+        return False
+    
+    # update ready status
+    all_ready = all(item.status == model.OrderItemStatus.READY for item in all_items)
+    if all_ready:
+        check = db.query(Check).filter(Check.id == check_id).first()
+        if check and check.status != CheckStatus.READY:
+            check.status = CheckStatus.READY
+            db.commit()
+            db.refresh(check)
+    
+    return all_ready
+
+
 def mark_item_ready(db: Session, item_id: int):
     """Mark a sent order item as ready"""
     from ..models.checks import Check
     from ..models.orders import Order
-    from ..controllers.checks import check_all_items_ready
     
     try:
         item = db.query(model.OrderItem).filter(model.OrderItem.id == item_id).first()
