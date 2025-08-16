@@ -241,24 +241,97 @@ def update_check_totals(db: Session, check_id: int):
     return check
 
 
+def get_checks_with_orders(db: Session, include_virtual: bool = True, include_table: bool = True):
+    """Get checks with their associated orders"""
+    query = db.query(Check).options(
+        joinedload(Check.orders).joinedload(Order.order_items),
         joinedload(Check.session)
-    ).all()
+    )
+    
+    if include_virtual and not include_table:
+        query = query.filter(Check.is_virtual == True)
+    elif include_table and not include_virtual:
+        query = query.filter(Check.is_virtual == False)
+    # if both are True, no filter needed (get all checks)
+    
+    return query.all()
 
 
-def get_pending_checks(db: Session):
-    """Get all checks pending payment"""
-    return db.query(Check).filter(
-        Check.status.in_([CheckStatus.SUBMITTED, CheckStatus.PAYMENT_PENDING])
-    ).options(joinedload(Check.session)).all()
+def get_check_summary(db: Session, check_id: int):
+    """Get comprehensive check summary - works for both virtual and table checks"""
+    check = db.query(Check).options(
+        joinedload(Check.orders).joinedload(Order.order_items).joinedload(OrderItem.menu_item),
+        joinedload(Check.session),
+        joinedload(Check.payments)
+    ).filter(Check.id == check_id).first()
+    
+    if not check:
+        raise_not_found("Check", check_id)
+    
+    # calculate current totals from orders
+    calculated_totals = calculate_check_total(db, check_id)
+    
+    # calculate payments made
+    total_payments = sum(payment.amount for payment in check.payments) if check.payments else Decimal('0.00')
+    
+    return {
+        'check': check,
+        'calculated_totals': calculated_totals,
+        'total_payments': total_payments,
+        'balance_due': (calculated_totals['total_amount'] + (check.tip_amount or Decimal('0.00'))) - total_payments,
+        'order_count': len(check.orders),
+        'is_virtual': check.is_virtual
+    }
 
 
-def get_virtual_checks(db: Session):
-    """Get all virtual checks (for online orders)"""
-    return db.query(Check).filter(Check.is_virtual == True).all()
+def update_check_status(db: Session, check_id: int, new_status: CheckStatus):
+    """Update check status with proper validation - works for both virtual and table checks"""
+    check = db.query(Check).filter(Check.id == check_id).first()
+    if not check:
+        raise_not_found("Check", check_id)
+    
+    # validate status transitions
+    valid_transitions = {
+        CheckStatus.OPEN: [CheckStatus.SENT],
+        CheckStatus.SENT: [CheckStatus.READY, CheckStatus.PAID],
+        CheckStatus.READY: [CheckStatus.PAID],
+        CheckStatus.PAID: [CheckStatus.CLOSED],
+        CheckStatus.CLOSED: []  # terminal state
+    }
+    
+    if new_status not in valid_transitions.get(check.status, []):
+        valid_next_states = [s.value for s in valid_transitions.get(check.status, [])]
+        raise_status_transition_error(
+            check.status.value,
+            new_status.value,
+            valid_next_states
+        )
+    
+    # update totals before status change if moving to sent or paid
+    if new_status in [CheckStatus.SENT, CheckStatus.PAID]:
+        update_check_totals(db, check_id)
+    
+    # set timestamps based on status
+    if new_status == CheckStatus.SENT and not check.submitted_at:
+        check.submitted_at = datetime.utcnow()
+    elif new_status == CheckStatus.PAID and not check.paid_at:
+        check.paid_at = datetime.utcnow()
+    
+    check.status = new_status
+    db.commit()
+    db.refresh(check)
+    return check
 
 
-def get_table_checks(db: Session):
-    """Get all table checks (non-virtual)"""
-    return db.query(Check).filter(Check.is_virtual == False).options(
+def get_checks_by_order_type(db: Session, order_type: str = None):
+    """Get checks filtered by associated order types - unified querying"""
+    query = db.query(Check).options(
+        joinedload(Check.orders),
         joinedload(Check.session)
-    ).all()
+    )
+    
+    if order_type:
+        from ..models.orders import OrderType
+        query = query.join(Order).filter(Order.order_type == OrderType(order_type))
+    
+    return query.all()
