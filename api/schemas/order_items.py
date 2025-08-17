@@ -22,8 +22,14 @@ class OrderItemBase(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
 
-class OrderItemCreate(OrderItemBase):
-    pass
+class OrderItemCreate(BaseModel):
+    """Schema for creating order items - unit_price is automatically set from menu item"""
+    order_id: int = Field(..., description="FK -> orders.id")
+    menu_item_id: int = Field(..., description="FK -> menu_items.id")
+    quantity: int = Field(..., ge=1, description="Quantity ordered")
+    special_instructions: Optional[str] = Field(None, description="Special preparation notes")
+    
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
 
 class OrderItemUpdate(BaseModel):

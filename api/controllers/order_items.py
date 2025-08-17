@@ -42,9 +42,16 @@ def create(db: Session, request):
     return new_item
 
 
-def read_all(db: Session):
+def read_all(db: Session, status: str = None):
+    from sqlalchemy.orm import joinedload
     try:
-        result = db.query(model.OrderItem).all()
+        query = db.query(model.OrderItem).options(
+            joinedload(model.OrderItem.menu_item),
+            joinedload(model.OrderItem.order).joinedload(order_model.Order.check)
+        )
+        if status:
+            query = query.filter(model.OrderItem.status == status)
+        result = query.all()
     except SQLAlchemyError as e:
         handle_sqlalchemy_error(e).raise_exception()
     return result

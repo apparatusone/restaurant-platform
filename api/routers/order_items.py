@@ -16,8 +16,8 @@ def create(request: schema.OrderItemCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/", response_model=list[schema.OrderItem])
-def read_all(db: Session = Depends(get_db)):
-    return controller.read_all(db)
+def read_all(status: str = None, db: Session = Depends(get_db)):
+    return controller.read_all(db, status=status)
 
 
 @router.get("/{item_id}", response_model=schema.OrderItem)
