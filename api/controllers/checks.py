@@ -138,10 +138,17 @@ def delete(db: Session, check_id: int):
     check = db.query(Check).filter(Check.id == check_id).first()
     if not check:
         raise_not_found("Check", check_id)
-    
+
     if check.status in [CheckStatus.SENT, CheckStatus.READY, CheckStatus.PAID, CheckStatus.CLOSED]:
         raise_validation_error("Cannot delete submitted or paid check")
-    
+
+    # Only allow delete if no menu items in the order
+    order = check.order
+    if order:
+        item_count = db.query(order.order_items).count()
+        if item_count > 0:
+            raise_validation_error("Cannot delete check with menu items in its order")
+
     db.delete(check)
     db.commit()
     return {"message": f"Check {check_id} deleted successfully"}
