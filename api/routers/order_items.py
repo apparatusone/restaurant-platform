@@ -15,9 +15,21 @@ def create(request: schema.OrderItemCreate, db: Session = Depends(get_db)):
     return controller.create(db=db, request=request)
 
 
+@router.post("/check/{check_id}", response_model=schema.OrderItem)
+def create_for_check(check_id: int, request: schema.CheckItemCreate, db: Session = Depends(get_db)):
+    """Create an order item for a check's order"""
+    return controller.create_for_check(
+        db=db, 
+        check_id=check_id,
+        menu_item_id=request.menu_item_id,
+        quantity=request.quantity,
+        special_instructions=request.special_instructions
+    )
+
+
 @router.get("/", response_model=list[schema.OrderItem])
-def read_all(status: str = None, db: Session = Depends(get_db)):
-    return controller.read_all(db, status=status)
+def read_all(status: str = None, check_id: int = None, db: Session = Depends(get_db)):
+    return controller.read_all(db, status=status, check_id=check_id)
 
 
 @router.get("/{item_id}", response_model=schema.OrderItem)

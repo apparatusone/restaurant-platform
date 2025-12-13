@@ -42,7 +42,73 @@ def create(db: Session, request):
     return new_item
 
 
-def read_all(db: Session, status: str = None):
+def create_for_check(db: Session, check_id: int, menu_item_id: int, quantity: int, special_instructions: str = None):
+    """Create an order item for a check's order (handles 1-1 check-order relationship)"""
+    from ..models import checks as check_model
+    from ..models.checks import CheckStatus
+    
+    # Get the check
+    check = db.query(check_model.Check).filter(check_model.Check.id == check_id).first()
+    if not check:
+        raise_not_found("Check", check_id)
+    
+    # Prevent adding items to paid or closed checks
+    if check.status in [CheckStatus.PAID, CheckStatus.CLOSED]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot add items to a check with status '{check.status.value}'. Check is already {check.status.value}."
+        )
+    
+    # Get the check's order (with 1-1 relationship, this should be a single order)
+    order = check.order
+    if not order:
+        # If no order exists for this check, we need to create one
+        # This might happen for checks created without orders initially
+        from ..models.orders import Order, OrderStatus, OrderType
+        
+        # Create a default order for the check
+        order = Order(
+            check_id=check_id,
+            status=OrderStatus.PENDING,
+            order_type=OrderType.DINE_IN  # default, could be made configurable
+        )
+        
+        try:
+            db.add(order)
+            db.commit()
+            db.refresh(order)
+        except SQLAlchemyError as e:
+            handle_sqlalchemy_error(e).raise_exception()
+    
+    # Get the menu item to verify it exists and get price
+    menu_item = db.query(menu_model.MenuItem).filter(menu_model.MenuItem.id == menu_item_id).first()
+    if not menu_item:
+        raise_not_found("Menu item", menu_item_id)
+    
+    # Calculate line total
+    line_total = Decimal(str(menu_item.price)) * quantity
+
+    # Create the order item
+    new_item = model.OrderItem(
+        order_id=order.id,
+        menu_item_id=menu_item_id,
+        quantity=quantity,
+        unit_price=menu_item.price,
+        line_total=line_total,
+        special_instructions=special_instructions
+    )
+
+    try:
+        db.add(new_item)
+        db.commit()
+        db.refresh(new_item)
+    except SQLAlchemyError as e:
+        handle_sqlalchemy_error(e).raise_exception()
+
+    return new_item
+
+
+def read_all(db: Session, status: str = None, check_id: int = None):
     from sqlalchemy.orm import joinedload
     try:
         query = db.query(model.OrderItem).options(
@@ -51,6 +117,8 @@ def read_all(db: Session, status: str = None):
         )
         if status:
             query = query.filter(model.OrderItem.status == status)
+        if check_id:
+            query = query.join(order_model.Order).filter(order_model.Order.check_id == check_id)
         result = query.all()
     except SQLAlchemyError as e:
         handle_sqlalchemy_error(e).raise_exception()
@@ -81,15 +149,45 @@ def update(db: Session, item_id, request):
         if not item.first():
             raise_not_found("Order item", item_id)
         
+        current_item = item.first()
         update_data = request.dict(exclude_unset=True)
         
         # update total
         if 'quantity' in update_data:
-            current_item = item.first()
             update_data['line_total'] = current_item.unit_price * update_data['quantity']
+        
+        # Check if status is being changed to SENT and robot is enabled
+        # Compare enum values (strings) instead of enum objects
+        new_status = update_data.get('status')
+        status_changed_to_sent = (
+            new_status is not None and 
+            (new_status == model.OrderItemStatus.SENT or 
+             (hasattr(new_status, 'value') and new_status.value == 'sent')) and
+            current_item.status != model.OrderItemStatus.SENT
+        )
         
         item.update(update_data, synchronize_session=False)
         db.commit()
+        
+        # If item was just sent and robot is enabled, add to robot queue
+        if status_changed_to_sent:
+            from ..routers.robot import get_robot_enabled_state
+            
+            if get_robot_enabled_state():
+                from ..services.robot import robot_service
+                from ..models.robot_queue import RobotQueue
+                
+                order_id = current_item.order_id
+                
+                # Check if order is already in queue
+                existing_queue_entry = db.query(RobotQueue).filter(
+                    RobotQueue.order_id == order_id
+                ).first()
+                
+                # Only add if not already in queue
+                if not existing_queue_entry:
+                    robot_service.add_to_queue(db, order_id)
+        
     except SQLAlchemyError as e:
         handle_sqlalchemy_error(e).raise_exception()
     return item.first()
@@ -192,7 +290,9 @@ def check_all_items_ready(db: Session, check_id: int):
     all_ready = all(item.status == model.OrderItemStatus.READY for item in all_items)
     if all_ready:
         check = db.query(Check).filter(Check.id == check_id).first()
-        if check and check.status != CheckStatus.READY:
+        # Only update status to READY if check is still in SENT status
+        # Don't change status if already PAID or CLOSED
+        if check and check.status == CheckStatus.SENT:
             check.status = CheckStatus.READY
             db.commit()
             db.refresh(check)
