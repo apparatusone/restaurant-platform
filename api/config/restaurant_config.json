@@ -19,6 +19,12 @@
         "service_charge_rate": 0.18,
         "currency": "USD",
         "currency_symbol": "$",
-        "timezone": "America/New_York"
+        "timezone": "America/New_York",
+        "delivery_fee": 3.99,
+        "minimum_order": 15.0,
+        "delivery_enabled": true,
+        "takeout_enabled": true,
+        "dine_in_enabled": true,
+        "robot_kitchen_enabled": true
     }
 }

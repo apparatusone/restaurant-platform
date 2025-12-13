@@ -125,6 +125,19 @@ def close_session(db: Session, session_id: int):
             detail="Session is already closed"
         )
     
+    # Check if there are any open checks for this session
+    from ..models.checks import Check
+    open_checks = db.query(Check).filter(
+        Check.session_id == session_id,
+        Check.status != 'closed'
+    ).all()
+    
+    if open_checks:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot close session: {len(open_checks)} open check(s) must be closed first"
+        )
+    
     session.closed_at = datetime.utcnow()
     
     tables = db.query(Table).filter(Table.current_session_id == session_id).all()

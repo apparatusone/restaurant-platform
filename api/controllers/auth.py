@@ -10,6 +10,9 @@ import jwt
 
 load_dotenv()
 
+# FIX: user can continue to use a token even if their account is destroyed
+# TODO: refresh tokens (stored server-side and hashed)
+
 JWT_SECRET = os.getenv("JWT_SECRET")
 if not JWT_SECRET:
     raise RuntimeError("JWT_SECRET environment variable is not set")
@@ -59,7 +62,7 @@ def pin_login(db: Session, req: PinLoginRequest) -> PinLoginResponse:
         if remaining_attempts <= 0:
             raise HTTPException(status_code=status.HTTP_423_LOCKED, detail="Account locked due to too many failed attempts")
         else:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Wrong PIN, {remaining_attempts} attempts remaining.")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Wrong PIN, {remaining_attempts} attempts remaining.")
 
     # TODO: track last login datetime
     staff.failed_attempts = 0

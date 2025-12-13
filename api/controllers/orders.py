@@ -85,6 +85,11 @@ def create(db: Session, request):
     if not check:
         raise_not_found("Check", check_id)
     
+    # with 1-1 relationship, check if an order already exists for this check
+    existing_order = db.query(model.Order).filter(model.Order.check_id == check_id).first()
+    if existing_order:
+        raise_validation_error(f"Check {check_id} already has an order. Each check can only have one order.")
+    
     # generate tracking number for online orders if not provided
     tracking_number = request.tracking_number
     if not tracking_number and request.order_type.value in ["takeout", "delivery"]:
@@ -149,10 +154,17 @@ def get_order_status_info(db: Session, order_id: int):
 
 def read_by_check(db: Session, check_id):
     try:
-        orders = db.query(model.Order).filter(model.Order.check_id == check_id).all()
+        # With 1-1 relationship, get the single order for this check
+        order = db.query(model.Order).filter(model.Order.check_id == check_id).first()
+        
+        # Access order_items to ensure they're loaded
+        if order:
+            _ = order.order_items  # This triggers loading of order_items
+            return order
+        return None
+            
     except SQLAlchemyError as e:
         handle_sqlalchemy_error(e).raise_exception()
-    return orders
 
 
 def read_one_in_check(db: Session, check_id, order_id):
