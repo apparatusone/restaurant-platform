@@ -13,9 +13,11 @@ from . import (
     analytics,
     staff,
     auth,
+    config,
     tables,
     table_sessions,
-    checks
+    checks,
+    robot
 )
 
 def load_routes(app):
@@ -33,6 +35,8 @@ def load_routes(app):
     app.include_router(promotions.router)
     app.include_router(staff.router)
     app.include_router(auth.router)
+    app.include_router(config.router)
     app.include_router(tables.router)
     app.include_router(table_sessions.router)
     app.include_router(checks.router)
+    app.include_router(robot.router)

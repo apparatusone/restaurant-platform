@@ -1,4 +1,4 @@
-from . import orders, order_items, menu_items, menu_item_ingredients, resources, payment_method, promotions, reviews, customers, staff, tables, table_sessions, checks
+from . import orders, order_items, menu_items, menu_item_ingredients, resources, payment_method, promotions, reviews, customers, staff, tables, table_sessions, checks, robot_queue
 
 from ..dependencies.database import engine
 
@@ -12,6 +12,7 @@ def index():
     
     orders.Base.metadata.create_all(engine)
     order_items.Base.metadata.create_all(engine)
+    robot_queue.Base.metadata.create_all(engine)  # Robot queue (references orders)
     resources.Base.metadata.create_all(engine)
     payment_method.Base.metadata.create_all(engine)
     promotions.Base.metadata.create_all(engine)
