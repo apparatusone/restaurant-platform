@@ -1,15 +1,15 @@
 import socket
 from datetime import datetime
 from typing import Optional
-from api.config.restaurant import (
+from ..config.restaurant import (
     RESTAURANT_NAME, 
     ADDRESS as RESTAURANT_ADDRESS, 
     PHONE as RESTAURANT_PHONE, 
     TAX_RATE
 )
-from api.dependencies.database import get_db
-from api.controllers.orders import read_one as get_order_by_id
-from api.controllers import order_items as order_item_controller
+from ..dependencies.database import get_db
+from ..controllers.orders import read_one as get_order_by_id
+from ..controllers import order_items as order_item_controller
 
 SERVER_IP = "10.0.1.43"
 PORT = 9100
@@ -33,8 +33,8 @@ def get_order_items_for_receipt(order_id: int) -> list[tuple[str, float]]:
     Get order items formatted for receipt printing.
     Returns list of tuples: (formatted_item_name, price)
     """
-    from api.models.order_items import OrderItem
-    from api.models.menu_items import MenuItem
+    from ..models.order_items import OrderItem
+    from ..models.menu_items import MenuItem
     
     db = next(get_db())
     
@@ -97,8 +97,8 @@ def print_receipt(order_id: int, subtotal: float = None, tax: float = None, tota
     items = get_order_items_for_receipt(order_id)
     
     # get order info for promo code
-    from api.models.orders import Order
-    from api.models.promotions import Promotion
+    from ..models.orders import Order
+    from ..models.promotions import Promotion
     db = next(get_db())
     order = db.query(Order).filter(Order.id == order_id).first()
     order_type = order.order_type.value.upper() if order else ""
