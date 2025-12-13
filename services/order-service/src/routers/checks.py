@@ -87,11 +87,6 @@ def add_item_to_check(check_id: int, request: order_item_schema.CheckItemCreate,
     return order_item_controller.add_item_to_check(db=db, check_id=check_id, request=request)
 
 
-@router.put("/{check_id}/send", response_model=schema.Check)
-def send_check_to_kitchen(check_id: int, db: Session = Depends(get_db)):
-    """Send all unsent items in a check to kitchen"""
-    return controller.send_check_to_kitchen(db=db, check_id=check_id)
-
 
 @router.post("/{check_id}/recalculate", response_model=schema.Check)
 def recalculate_check_totals(check_id: int, db: Session = Depends(get_db)):

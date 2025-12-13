@@ -180,20 +180,6 @@ def read_one_in_check(db: Session, check_id, order_id):
     return order
 
 
-def get_kitchen_orders(db: Session):
-    try:
-        orders = db.query(model.Order).filter(
-            model.Order.status.in_([
-                model.OrderStatus.PENDING,
-                model.OrderStatus.CONFIRMED,
-                model.OrderStatus.IN_PROGRESS
-            ])
-        ).all()
-    except SQLAlchemyError as e:
-        handle_sqlalchemy_error(e).raise_exception()
-    return orders
-
-
 def get_delivery_orders(db: Session):
     try:
         orders = db.query(model.Order).filter(

@@ -35,11 +35,6 @@ def get_orders(
         return controller.read_all(db)
 
 
-@router.get("/kitchen", response_model=list[schema.Order])
-def get_kitchen_orders(db: Session = Depends(get_db)):
-    return controller.get_kitchen_orders(db)
-
-
 @router.get("/delivery", response_model=list[schema.Order])
 def get_delivery_orders(db: Session = Depends(get_db)):
     return controller.get_delivery_orders(db)
