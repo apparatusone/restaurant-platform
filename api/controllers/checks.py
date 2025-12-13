@@ -48,7 +48,7 @@ def read_all(db: Session):
     """Get all checks with session info - handles both virtual and table checks"""
     return db.query(Check).options(
         joinedload(Check.session),
-        joinedload(Check.orders)
+        joinedload(Check.order)
     ).all()
 
 
@@ -56,7 +56,7 @@ def read_one(db: Session, check_id: int):
     """Get single check with full details - works for both virtual and table checks"""
     check = db.query(Check).options(
         joinedload(Check.session),
-        joinedload(Check.orders).joinedload(Order.order_items),
+        joinedload(Check.order).joinedload(Order.order_items),
         joinedload(Check.payments)
     ).filter(Check.id == check_id).first()
     if not check:
@@ -142,12 +142,14 @@ def delete(db: Session, check_id: int):
     if check.status in [CheckStatus.SENT, CheckStatus.READY, CheckStatus.PAID, CheckStatus.CLOSED]:
         raise_validation_error("Cannot delete submitted or paid check")
 
-    # Only allow delete if no menu items in the order
-    order = check.order
-    if order:
-        item_count = db.query(order.order_items).count()
-        if item_count > 0:
-            raise_validation_error("Cannot delete check with menu items in its order")
+    # Only allow delete if no order items
+    from ..models.order_items import OrderItem
+    from ..models.orders import Order
+    
+    # Find all orders for this check and count their items
+    item_count = db.query(OrderItem).join(Order).filter(Order.check_id == check_id).count()
+    if item_count > 0:
+        raise_validation_error("Cannot delete check with order items")
 
     db.delete(check)
     db.commit()
@@ -158,7 +160,7 @@ def get_open_checks(db: Session, include_virtual: bool = True, include_table: bo
     """Get all open checks - unified for virtual and table checks"""
     query = db.query(Check).filter(Check.status == CheckStatus.OPEN).options(
         joinedload(Check.session),
-        joinedload(Check.orders)
+        joinedload(Check.order)
     )
     
     if include_virtual and not include_table:
@@ -175,7 +177,7 @@ def get_pending_checks(db: Session, include_virtual: bool = True, include_table:
         Check.status.in_([CheckStatus.SENT, CheckStatus.READY])
     ).options(
         joinedload(Check.session),
-        joinedload(Check.orders)
+        joinedload(Check.order)
     )
     
     if include_virtual and not include_table:
@@ -189,7 +191,7 @@ def get_pending_checks(db: Session, include_virtual: bool = True, include_table:
 def get_virtual_checks(db: Session, status: CheckStatus = None):
     """Get virtual checks with optional status filter"""
     query = db.query(Check).filter(Check.is_virtual == True).options(
-        joinedload(Check.orders).joinedload(Order.order_items)
+        joinedload(Check.order).joinedload(Order.order_items)
     )
     
     if status:
@@ -202,7 +204,7 @@ def get_table_checks(db: Session, status: CheckStatus = None):
     """Get a table's checks with optional status filter"""
     query = db.query(Check).filter(Check.is_virtual == False).options(
         joinedload(Check.session),
-        joinedload(Check.orders).joinedload(Order.order_items)
+        joinedload(Check.order).joinedload(Order.order_items)
     )
     
     if status:
@@ -249,9 +251,9 @@ def update_check_totals(db: Session, check_id: int):
 
 
 def get_checks_with_orders(db: Session, include_virtual: bool = True, include_table: bool = True):
-    """Get checks with their associated orders"""
+    """Get checks with their associated order"""
     query = db.query(Check).options(
-        joinedload(Check.orders).joinedload(Order.order_items),
+        joinedload(Check.order).joinedload(Order.order_items),
         joinedload(Check.session)
     )
     
@@ -267,7 +269,7 @@ def get_checks_with_orders(db: Session, include_virtual: bool = True, include_ta
 def get_check_summary(db: Session, check_id: int):
     """Get comprehensive check summary - works for both virtual and table checks"""
     check = db.query(Check).options(
-        joinedload(Check.orders).joinedload(Order.order_items).joinedload(OrderItem.menu_item),
+        joinedload(Check.order).joinedload(Order.order_items).joinedload(OrderItem.menu_item),
         joinedload(Check.session),
         joinedload(Check.payments)
     ).filter(Check.id == check_id).first()
@@ -286,7 +288,7 @@ def get_check_summary(db: Session, check_id: int):
         'calculated_totals': calculated_totals,
         'total_payments': total_payments,
         'balance_due': (calculated_totals['total_amount'] + (check.tip_amount or Decimal('0.00'))) - total_payments,
-        'order_count': len(check.orders),
+        'order_count': 1 if check.order else 0,
         'is_virtual': check.is_virtual
     }
 
@@ -333,7 +335,7 @@ def update_check_status(db: Session, check_id: int, new_status: CheckStatus):
 def get_checks_by_order_type(db: Session, order_type: str = None):
     """Get checks filtered by associated order types - unified querying"""
     query = db.query(Check).options(
-        joinedload(Check.orders),
+        joinedload(Check.order),
         joinedload(Check.session)
     )
     
@@ -377,13 +379,34 @@ def send_check_to_kitchen(db: Session, check_id: int):
 def create_payment_for_check(db: Session, check_id: int, request):
     """Create payment for a check with business rule validation"""
     from ..models.payment_method import Payment, PaymentType, PaymentStatus
+    from ..models.order_items import OrderItem, OrderItemStatus
     
     check = db.query(Check).filter(Check.id == check_id).first()
     if not check:
         raise_not_found("Check", check_id)
     
-    if check.status != CheckStatus.READY:
-        raise_validation_error(f"Cannot process payment for check with status '{check.status.value}'. Check must be ready.")
+    # For dine-in checks (non-virtual), require status to be READY and all items ready
+    # For online orders (virtual checks), allow payment at any status after OPEN
+    if not check.is_virtual:
+        if check.status != CheckStatus.READY:
+            raise_validation_error(f"Cannot process payment for check with status '{check.status.value}'. Check must be ready.")
+        
+        # Verify all order items are actually ready for dine-in
+        all_items = db.query(OrderItem).join(Order).filter(
+            Order.check_id == check_id
+        ).all()
+        
+        if all_items:
+            not_ready_items = [item for item in all_items if item.status != OrderItemStatus.READY]
+            if not_ready_items:
+                raise_validation_error(
+                    f"Cannot process payment. {len(not_ready_items)} item(s) are not ready yet. "
+                    f"All items must be ready before payment."
+                )
+    else:
+        # For virtual checks, allow payment after items are sent (OPEN -> SENT -> payment)
+        if check.status == CheckStatus.OPEN:
+            raise_validation_error(f"Cannot process payment for online order with status '{check.status.value}'. Items must be sent to kitchen first.")
     
     # validate amount
     if request.amount <= 0:
@@ -399,7 +422,11 @@ def create_payment_for_check(db: Session, check_id: int, request):
     
     remaining_balance = check.total_amount - total_existing
     if request.amount > remaining_balance:
-        raise_validation_error(f"Payment amount ({request.amount}) exceeds remaining balance ({remaining_balance})")
+        raise_validation_error(
+            f"Payment amount ({request.amount}) exceeds remaining balance ({remaining_balance}). "
+            f"Check total: {check.total_amount}, Already paid: {total_existing}, "
+            f"Existing payments: {len(existing_payments)}"
+        )
     
     payment_status = PaymentStatus.COMPLETED if request.payment_type == PaymentType.CASH else PaymentStatus.COMPLETED
     

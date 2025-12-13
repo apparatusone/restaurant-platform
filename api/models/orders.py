@@ -46,7 +46,7 @@ class Order(Base):
 
 
     # relationships
-    check = relationship("Check", back_populates="orders")
+    check = relationship("Check", back_populates="order")
     customer = relationship("Customer", back_populates="orders")
     promo = relationship("Promotion", back_populates="orders")
     order_items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")

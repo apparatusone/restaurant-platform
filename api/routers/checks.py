@@ -93,6 +93,12 @@ def send_check_to_kitchen(check_id: int, db: Session = Depends(get_db)):
     return controller.send_check_to_kitchen(db=db, check_id=check_id)
 
 
+@router.post("/{check_id}/recalculate", response_model=schema.Check)
+def recalculate_check_totals(check_id: int, db: Session = Depends(get_db)):
+    """Recalculate check totals from order items"""
+    return controller.update_check_totals(db=db, check_id=check_id)
+
+
 @router.post("/{check_id}/payments", response_model=schema.Check)
 def create_payment_for_check(check_id: int, request: payment_schema.CheckPaymentCreate, db: Session = Depends(get_db)):
     """Create payment for a check"""

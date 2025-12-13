@@ -43,5 +43,5 @@ class Check(Base):
 
     # relationships
     session = relationship("TableSession", back_populates="checks")
-    orders = relationship("Order", back_populates="check", cascade="all, delete-orphan")
+    order = relationship("Order", back_populates="check", uselist=False, cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="check", cascade="all, delete-orphan")
