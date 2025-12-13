@@ -1,6 +1,6 @@
 from sqlalchemy import Column, ForeignKey, Integer
 from sqlalchemy.orm import relationship
-from ..dependencies.database import Base
+from shared.dependencies.database import Base
 
 
 class MenuItemIngredient(Base):

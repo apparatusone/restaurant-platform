@@ -4,11 +4,11 @@ from typing import List
 import json
 import os
 
-from ..dependencies.database import get_db
+from shared.dependencies.database import get_db
 from ..services.robot import robot_service
-from ..models.orders import Order
-from ..models.order_items import OrderItem
-from ..models.menu_items import MenuItem
+from shared.models.orders import Order
+from shared.models.order_items import OrderItem
+from shared.models.menu_items import MenuItem
 from ..models.robot_queue import RobotQueue
 
 router = APIRouter(prefix="/robot", tags=["robot"])
@@ -106,7 +106,7 @@ async def send_order_to_robot(
             }
     
     # Fetch order items with menu item details - only sent items that haven't been sent to robot yet
-    from ..models.order_items import OrderItemStatus
+    from shared.models.order_items import OrderItemStatus
     order_items = db.query(OrderItem).filter(
         OrderItem.order_id == order_id,
         OrderItem.status.in_([OrderItemStatus.SENT, OrderItemStatus.UNSENT])  # Include unsent for manual sends

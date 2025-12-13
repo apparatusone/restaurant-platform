@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from ..dependencies.database import Base
+from shared.dependencies.database import Base
 
 class Table(Base):
     """

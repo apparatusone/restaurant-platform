@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from ..dependencies.database import Base
+from shared.dependencies.database import Base
 
 class Reviews(Base):
     __tablename__ = "reviews"

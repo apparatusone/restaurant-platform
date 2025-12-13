@@ -43,7 +43,7 @@ def get_dish_analytics_average_rating(db: Session, time_range: TimeRange = TimeR
     Get list of dishes with their average ratings
     """
     from sqlalchemy import func, cast, Float
-    from ..models.menu_items import MenuItem
+    from shared.models.menu_items import MenuItem
     from ..models.reviews import Reviews
 
     # get the filtered reviews
@@ -80,9 +80,9 @@ def get_dish_analytics_popularity(db: Session,
     Get a list of menu items and their order count in the selected time range
     """
     from sqlalchemy import func
-    from ..models.menu_items import MenuItem
-    from ..models.orders import Order
-    from ..models.order_items import OrderItem
+    from shared.models.menu_items import MenuItem
+    from shared.models.orders import Order
+    from shared.models.order_items import OrderItem
     
     # sum total quantity
     order_count = func.sum(OrderItem.amount).label("order_count")
@@ -121,7 +121,7 @@ def view_reviews(db: Session, sort_by: TimeSort):
     Get all reviews sorted by date
     """
     from ..models.reviews import Reviews
-    from ..models.menu_items import MenuItem
+    from shared.models.menu_items import MenuItem
     
     # get all reviews with menu item information
     query = db.query(Reviews).join(MenuItem, Reviews.menu_item_id == MenuItem.id)

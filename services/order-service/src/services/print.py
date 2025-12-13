@@ -7,7 +7,7 @@ from ..config.restaurant import (
     PHONE as RESTAURANT_PHONE, 
     TAX_RATE
 )
-from ..dependencies.database import get_db
+from shared.dependencies.database import get_db
 from ..controllers.orders import read_one as get_order_by_id
 from ..controllers import order_items as order_item_controller
 
@@ -33,8 +33,8 @@ def get_order_items_for_receipt(order_id: int) -> list[tuple[str, float]]:
     Get order items formatted for receipt printing.
     Returns list of tuples: (formatted_item_name, price)
     """
-    from ..models.order_items import OrderItem
-    from ..models.menu_items import MenuItem
+    from shared.models.order_items import OrderItem
+    from shared.models.menu_items import MenuItem
     
     db = next(get_db())
     
@@ -97,7 +97,7 @@ def print_receipt(order_id: int, subtotal: float = None, tax: float = None, tota
     items = get_order_items_for_receipt(order_id)
     
     # get order info for promo code
-    from ..models.orders import Order
+    from shared.models.orders import Order
     from ..models.promotions import Promotion
     db = next(get_db())
     order = db.query(Order).filter(Order.id == order_id).first()

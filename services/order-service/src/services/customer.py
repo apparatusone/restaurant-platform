@@ -10,11 +10,11 @@ from ..utils.errors import (
     raise_not_found,
     DatabaseError
 )
-from ..models.menu_items import MenuItem
+from shared.models.menu_items import MenuItem
 from ..models.menu_item_ingredients import MenuItemIngredient
 from ..models.resources import Resource
-from ..schemas import orders as order_schema
-from ..schemas import order_items as order_item_schema
+from shared.schemas import orders as order_schema
+from shared.schemas import order_items as order_item_schema
 from ..schemas import payment_method as payment_schema
 from ..schemas import customers as customer_schema
 from ..controllers import orders as order_controller
@@ -22,10 +22,10 @@ from ..controllers import order_items as order_item_controller
 from ..controllers import payment_method as payment_controller
 from ..controllers import customers as customer_controller
 from ..schemas.payment_method import PaymentType
-from ..models.order_items import OrderItem
-from ..models.menu_items import MenuItem
+from shared.models.order_items import OrderItem
+from shared.models.menu_items import MenuItem
 from .print import print_receipt
-from ..models.orders import Order
+from shared.models.orders import Order
 
 from decimal import Decimal
 from enum import Enum
@@ -219,8 +219,8 @@ def add_promo_code(db: Session, order_id: int, promo_code: str):
     Apply a promo code to an order
     """
     from ..models.promotions import Promotion
-    from ..models.orders import Order
-    from ..schemas.orders import OrderUpdate
+    from shared.models.orders import Order
+    from shared.schemas.orders import OrderUpdate
     from ..controllers import orders as order_controller
     from fastapi import HTTPException, status
     from datetime import datetime
@@ -295,8 +295,8 @@ def update_raw_ingredients(db: Session, order_id: int):
     """
     Deduct raw ingredients based on order items
     """
-    from ..models.orders import Order
-    from ..models.order_items import OrderItem
+    from shared.models.orders import Order
+    from shared.models.order_items import OrderItem
     from ..models.menu_item_ingredients import MenuItemIngredient
     from ..models.resources import Resource
     
@@ -349,11 +349,11 @@ def checkout(db: Session, order_id: int, response=None):
     Process checkout for an order
     """
     from ..models.promotions import Promotion
-    from ..models.orders import Order
+    from shared.models.orders import Order
     from datetime import datetime
     from fastapi import HTTPException
-    from ..schemas.orders import OrderStatus
-    from ..schemas.orders import OrderUpdate
+    from shared.schemas.orders import OrderStatus
+    from shared.schemas.orders import OrderUpdate
     from ..config.restaurant import TAX_RATE
 
     # Get the order
@@ -454,7 +454,7 @@ def checkout(db: Session, order_id: int, response=None):
         # only generate if no existing number
         if not order.tracking_number:
             from ..controllers.orders import generate_tracking_number
-            from ..models.orders import OrderType
+            from shared.models.orders import OrderType
             
             # Convert string to enum for tracking number generation
             order_type_enum = OrderType.TAKEOUT if order.order_type.value == "takeout" else OrderType.DELIVERY
@@ -491,7 +491,7 @@ def get_tracking_information(db: Session, tracking_number: str):
     """
     Get order tracking information by tracking number
     """
-    from ..models.orders import Order
+    from shared.models.orders import Order
     from fastapi import HTTPException
     
     # Find the order by tracking number
@@ -511,7 +511,7 @@ def choose_order_type(db: Session, order_id: int, type):
     Update the order type (dine_in, takeout, delivery)
     Tracking number will be generated at checkout for takeout and delivery orders
     """
-    from ..schemas.orders import OrderUpdate
+    from shared.schemas.orders import OrderUpdate
     from ..controllers import orders as order_controller
     
     # create the order update with the new type
@@ -524,7 +524,7 @@ def get_reviews(db: Session):
     """
     Get menu items that have reviews and the reviews
     """
-    from ..models.menu_items import MenuItem
+    from shared.models.menu_items import MenuItem
     from ..models.reviews import Reviews
     
     # get menu items that have reviews
@@ -560,10 +560,10 @@ def submit_complete_order(db: Session, order_data):
     """
     from ..schemas.order_submission import CompleteOrderSubmission
     from ..models.customers import Customer
-    from ..models.orders import Order
-    from ..models.order_items import OrderItem
+    from shared.models.orders import Order
+    from shared.models.order_items import OrderItem
     from ..models.payment_method import Payment
-    from ..schemas.orders import OrderStatus
+    from shared.schemas.orders import OrderStatus
     from ..schemas.payment_method import PaymentType
     from ..config.restaurant import TAX_RATE
     import uuid

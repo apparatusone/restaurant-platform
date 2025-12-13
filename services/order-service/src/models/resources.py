@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import relationship
-from ..dependencies.database import Base
+from shared.dependencies.database import Base
 
 
 class Resource(Base):

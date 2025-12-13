@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from ..schemas import menu_items as schema
 from ..services import customer as customer_services
-from ..dependencies.database import get_db
+from shared.dependencies.database import get_db
 
 router = APIRouter(
     tags=['Menu'],

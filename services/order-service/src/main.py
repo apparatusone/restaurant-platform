@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from .routers import index as indexRoute
 from .models import model_loader
-from .dependencies.config import conf
+from shared.dependencies.config import conf
 
 
 app = FastAPI()

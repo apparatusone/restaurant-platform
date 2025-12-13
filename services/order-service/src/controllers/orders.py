@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, Response
-from ..models import orders as model
+from shared.models import orders as model
 from ..models import checks as check_model
 from ..utils.errors import (
     handle_sqlalchemy_error,

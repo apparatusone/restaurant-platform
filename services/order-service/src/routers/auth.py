@@ -1,7 +1,7 @@
 # api/routers/auth.py
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from ..dependencies.database import get_db
+from shared.dependencies.database import get_db
 from ..schemas.auth import PinLoginRequest, PinLoginResponse
 from ..controllers.auth import pin_login
 

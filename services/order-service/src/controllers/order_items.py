@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, Response
-from ..models import order_items as model
-from ..models import orders as order_model
-from ..models import menu_items as menu_model
+from shared.models import order_items as model
+from shared.models import orders as order_model
+from shared.models import menu_items as menu_model
 from ..utils.errors import (
     handle_sqlalchemy_error,
     raise_not_found
@@ -64,7 +64,7 @@ def create_for_check(db: Session, check_id: int, menu_item_id: int, quantity: in
     if not order:
         # If no order exists for this check, we need to create one
         # This might happen for checks created without orders initially
-        from ..models.orders import Order, OrderStatus, OrderType
+        from shared.models.orders import Order, OrderStatus, OrderType
         
         # Create a default order for the check
         order = Order(
@@ -277,7 +277,7 @@ def add_item_to_check(db: Session, check_id: int, request):
 def check_all_items_ready(db: Session, check_id: int):
     """Check if all items in a check are ready and update check status accordingly"""
     from ..models.checks import Check, CheckStatus
-    from ..models.orders import Order
+    from shared.models.orders import Order
     
     all_items = db.query(model.OrderItem).join(Order).filter(
         Order.check_id == check_id
@@ -303,7 +303,7 @@ def check_all_items_ready(db: Session, check_id: int):
 def mark_item_ready(db: Session, item_id: int):
     """Mark a sent order item as ready"""
     from ..models.checks import Check
-    from ..models.orders import Order
+    from shared.models.orders import Order
     
     try:
         item = db.query(model.OrderItem).filter(model.OrderItem.id == item_id).first()

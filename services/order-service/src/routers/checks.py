@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from decimal import Decimal
-from ..dependencies.database import get_db
+from shared.dependencies.database import get_db
 from ..schemas import checks as schema
-from ..schemas import orders as order_schema
-from ..schemas import order_items as order_item_schema
+from shared.schemas import orders as order_schema
+from shared.schemas import order_items as order_item_schema
 from ..schemas import payment_method as payment_schema
 from ..controllers import checks as controller
 from ..controllers import orders as order_controller

@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, Response, Depends
 from ..models import payment_method as model
 from ..models.checks import Check
-from ..models.orders import Order
+from shared.models.orders import Order
 from sqlalchemy.exc import SQLAlchemyError
 from ..schemas.payment_method import PaymentType, PaymentStatus
 from decimal import Decimal

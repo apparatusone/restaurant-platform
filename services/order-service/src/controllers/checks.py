@@ -4,8 +4,8 @@ from fastapi import HTTPException, status
 from datetime import datetime
 from decimal import Decimal
 from ..models.checks import Check, CheckStatus
-from ..models.orders import Order
-from ..models.order_items import OrderItem
+from shared.models.orders import Order
+from shared.models.order_items import OrderItem
 from ..models.table_sessions import TableSession
 from ..schemas.checks import CheckCreate, CheckUpdate
 from ..utils.errors import (
@@ -143,8 +143,8 @@ def delete(db: Session, check_id: int):
         raise_validation_error("Cannot delete submitted or paid check")
 
     # Only allow delete if no order items
-    from ..models.order_items import OrderItem
-    from ..models.orders import Order
+    from shared.models.order_items import OrderItem
+    from shared.models.orders import Order
     
     # Find all orders for this check and count their items
     item_count = db.query(OrderItem).join(Order).filter(Order.check_id == check_id).count()
@@ -340,7 +340,7 @@ def get_checks_by_order_type(db: Session, order_type: str = None):
     )
     
     if order_type:
-        from ..models.orders import OrderType
+        from shared.models.orders import OrderType
         query = query.join(Order).filter(Order.order_type == OrderType(order_type))
     
     return query.all()
@@ -379,7 +379,7 @@ def send_check_to_kitchen(db: Session, check_id: int):
 def create_payment_for_check(db: Session, check_id: int, request):
     """Create payment for a check with business rule validation"""
     from ..models.payment_method import Payment, PaymentType, PaymentStatus
-    from ..models.order_items import OrderItem, OrderItemStatus
+    from shared.models.order_items import OrderItem, OrderItemStatus
     
     check = db.query(Check).filter(Check.id == check_id).first()
     if not check:

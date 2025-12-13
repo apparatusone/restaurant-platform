@@ -1,6 +1,6 @@
-from . import orders, order_items, menu_items, menu_item_ingredients, resources, payment_method, promotions, reviews, customers, staff, tables, table_sessions, checks, robot_queue
-
-from ..dependencies.database import engine
+from . import menu_item_ingredients, resources, payment_method, promotions, reviews, customers, staff, tables, table_sessions, checks, robot_queue
+from shared.models import orders, order_items, menu_items
+from shared.dependencies.database import engine
 
 
 def index():

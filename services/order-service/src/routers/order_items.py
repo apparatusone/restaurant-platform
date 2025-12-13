@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from ..controllers import order_items as controller
-from ..schemas import order_items as schema
-from ..dependencies.database import get_db
+from shared.schemas import order_items as schema
+from shared.dependencies.database import get_db
 
 router = APIRouter(
     tags=['Order Items'],

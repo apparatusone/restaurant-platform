@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from datetime import date
 from ..controllers import orders as controller
-from ..schemas import orders as schema
-from ..models.orders import OrderStatus
+from shared.schemas import orders as schema
+from shared.models.orders import OrderStatus
 from ..services import staff as staff_services
 from ..services import customer as customer_services
-from ..dependencies.database import get_db
+from shared.dependencies.database import get_db
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 

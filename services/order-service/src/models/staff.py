@@ -1,7 +1,7 @@
 from sqlalchemy import CHAR, Column, Integer, String, Boolean, DateTime, CheckConstraint, text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from ..dependencies.database import Base
+from shared.dependencies.database import Base
 
 class Staff(Base):
     __tablename__ = "staff"

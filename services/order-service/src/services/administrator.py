@@ -93,7 +93,7 @@ def purge_database(db: Session):
     This will delete ALL data from the database permanently!
     """
     try:
-        from ..dependencies.database import Base
+        from shared.dependencies.database import Base
         from sqlalchemy import text
         
         # Delete all data from tables

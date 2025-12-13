@@ -7,9 +7,9 @@ from ..models.menu_item_ingredients import MenuItemIngredient
 from ..models.resources import Resource
 from ..models import promotions as promotion_model
 from ..models.payment_method import Payment, PaymentStatus
-from ..models.orders import Order, OrderStatus
+from shared.models.orders import Order, OrderStatus
 from ..models.reviews import Reviews
-from ..models.menu_items import MenuItem
+from shared.models.menu_items import MenuItem
 from .analytics import ValueSort
     
 

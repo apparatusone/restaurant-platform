@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from ..dependencies.database import get_db
+from shared.dependencies.database import get_db
 from ..schemas import tables as schema
 from ..controllers import tables as controller
 

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from ..dependencies.database import get_db
+from shared.dependencies.database import get_db
 from ..services import administrator as admin_services
 from ..services.administrator import TestDataType
 
