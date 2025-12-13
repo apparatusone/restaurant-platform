@@ -19,19 +19,12 @@ class MenuItem(Base):
     calories      = Column(Integer, nullable=False)
     food_category = Column(Enum(FoodCategory), nullable=False, index=True, default=FoodCategory.REGULAR) # vegetarian, vegan, etc
 
-    # ingredients are joined from menu_item_ingredients
-    menu_item_ingredients = relationship(
-        "MenuItemIngredient",
-        back_populates="menu_item",
-        cascade="all, delete-orphan"
-    )
+    # order_items is guaranteed to exist (in shared)
     order_items = relationship(
         "OrderItem",
         back_populates="menu_item",
         cascade="all, delete-orphan"
     )
-    reviews = relationship(
-        "Reviews",
-        back_populates="menu_item",
-        cascade="all, delete-orphan"
-    )
+    
+    # Note: menu_item_ingredients, reviews relationships are added dynamically
+    # in order-service's model_loader to avoid import issues in kitchen-service

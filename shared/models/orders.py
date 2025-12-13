@@ -46,8 +46,7 @@ class Order(Base):
 
 
     # relationships
-    check = relationship("Check", back_populates="order")
-    customer = relationship("Customer", back_populates="orders")
-    promo = relationship("Promotion", back_populates="orders")
     order_items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
-    payments = relationship("Payment", back_populates="order")
+    
+    # Note: check, customer, promo, payments relationships are added dynamically
+    # in order-service's model_loader to avoid import issues in kitchen-service

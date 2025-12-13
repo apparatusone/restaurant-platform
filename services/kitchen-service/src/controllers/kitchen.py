@@ -8,9 +8,8 @@ from shared.models.menu_items import MenuItem
 def get_kitchen_queue(db: Session):
     """Get all orders currently in kitchen (pending, confirmed, in_progress)"""
     try:
-        orders = db.query(Order).options(
-            joinedload(Order.order_items).joinedload(OrderItem.menu_item)
-        ).filter(
+        # Query orders without loading relationships that aren't in shared
+        orders = db.query(Order).filter(
             Order.status.in_([
                 OrderStatus.PENDING,
                 OrderStatus.CONFIRMED,
