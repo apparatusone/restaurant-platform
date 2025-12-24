@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 import json
 import os
+import logging
 
 from shared.dependencies.database import get_db
 from ..services.robot import robot_service
@@ -12,6 +13,7 @@ from shared.models.menu_items import MenuItem
 from ..models.robot_queue import RobotQueue
 
 router = APIRouter(prefix="/robot", tags=["robot"])
+logger = logging.getLogger(__name__)
 
 # Path to config file
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "restaurant_config.json")
@@ -23,7 +25,7 @@ def get_robot_enabled_state() -> bool:
             config = json.load(f)
         return config.get("business_settings", {}).get("robot_kitchen_enabled", False)
     except Exception as e:
-        print(f"Error reading config: {e}")
+        logger.error("Error reading robot config", exc_info=True)
         return False
 
 def set_robot_enabled_state(enabled: bool) -> bool:
@@ -42,7 +44,7 @@ def set_robot_enabled_state(enabled: bool) -> bool:
         
         return True
     except Exception as e:
-        print(f"Error writing config: {e}")
+        logger.error("Error writing robot config", exc_info=True)
         return False
 
 @router.get("/enabled")

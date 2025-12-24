@@ -77,7 +77,9 @@ def print_receipt(order_id: int, subtotal: float = None, tax: float = None, tota
             price_float = float(price)
             price_str = f"{price_float:,.2f}"
         except (ValueError, TypeError):
-            print(f"Debug: Invalid price value: {price} (type: {type(price)})")
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning("Invalid price value", extra={"price": price, "type": type(price).__name__})
           
         
         # calculate available width

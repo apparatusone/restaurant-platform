@@ -11,6 +11,7 @@ from shared.models.orders import Order, OrderStatus
 from ..models.reviews import Reviews
 from shared.models.menu_items import MenuItem
 from .analytics import ValueSort
+from shared.utils.error_handlers import handle_database_error
     
 
 # this function gets and returns the ingredients needed for a particular menu item
@@ -31,8 +32,7 @@ def get_promotion_by_code(db: Session, promo_code: str):
         if not item:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Promo code not found!")
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        raise handle_database_error(e, operation="get promotion by code", log_context={"promo_code": promo_code})
     return item
 
 
@@ -45,8 +45,7 @@ def update_promotion_by_code(db: Session, promo_code: str, request):
         item.update(update_data, synchronize_session=False)
         db.commit()
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        raise handle_database_error(e, operation="update promotion by code", log_context={"promo_code": promo_code})
     return item.first()
 
 
@@ -58,8 +57,7 @@ def delete_promotion_by_code(db: Session, promo_code: str):
         item.delete(synchronize_session=False)
         db.commit()
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        raise handle_database_error(e, operation="delete promotion by code", log_context={"promo_code": promo_code})
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

@@ -1,5 +1,6 @@
 import random
 import string
+import logging
 from datetime import datetime
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
@@ -28,6 +29,8 @@ from .print import print_receipt
 from shared.models.orders import Order
 
 from decimal import Decimal
+
+logger = logging.getLogger(__name__)
 from enum import Enum
 
 class FilterCategory(str, Enum):
@@ -442,10 +445,10 @@ def checkout(db: Session, order_id: int, response=None):
         elif order.order_type.value == "delivery":
             # Send email receipt for delivery orders
             # TODO: Implement email receipt functionality
-            print(f"Email receipt should be sent for delivery order {order_id}")
+            logger.info("Email receipt should be sent for delivery order", extra={"order_id": order_id})
     except Exception as e:
         # Log the error but don't fail the checkout
-        print(f"Warning: Failed to process receipt for order {order_id}: {str(e)}") 
+        logger.warning("Failed to process receipt", extra={"order_id": order_id}, exc_info=True) 
 
     # if takeout or delivery provide tracking number
     tracking_number = None
@@ -568,7 +571,7 @@ def submit_complete_order(db: Session, order_data):
     from ..config.restaurant import TAX_RATE
     import uuid
 
-    print("DEBUG: Starting order submission validation")
+    logger.debug("Starting order submission validation")
     
     try:
         # Validate order items and calculate server-side totals
@@ -756,7 +759,7 @@ def submit_complete_order(db: Session, order_data):
                 try:
                     print_receipt(db, order.id)
                 except Exception as e:
-                    print(f"Failed to print receipt: {e}")
+                    logger.error("Failed to print receipt", extra={"order_id": order.id}, exc_info=True)
                     
             except HTTPException as resource_error:
                 # Resources became unavailable between check and deduction
@@ -788,9 +791,14 @@ def submit_complete_order(db: Session, order_data):
                 response_message = f"Order received but cannot be fulfilled: {message}. We'll prepare your order as soon as possible."
             delivery_time = "Pending ingredient availability"
 
-        print(f"DEBUG: Order {order.id} processed successfully with status {order.status}")
-        print(f"DEBUG: Generated tracking number: {tracking_number}")
-        print(f"DEBUG: Order tracking_number field: {order.tracking_number}")
+        logger.debug(
+            "Order processed successfully",
+            extra={
+                "order_id": order.id,
+                "status": order.status,
+                "tracking_number": tracking_number
+            }
+        )
 
         return {
             "success": True,

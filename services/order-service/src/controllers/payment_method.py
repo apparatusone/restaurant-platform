@@ -6,6 +6,7 @@ from shared.models.orders import Order
 from sqlalchemy.exc import SQLAlchemyError
 from ..schemas.payment_method import PaymentType, PaymentStatus
 from decimal import Decimal
+from shared.utils.error_handlers import handle_database_error
 
 
 def create(db: Session, request):
@@ -68,8 +69,7 @@ def create(db: Session, request):
         db.commit()
         db.refresh(new_item)
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        raise handle_database_error(e, operation="payment creation", log_context={"check_id": request.check_id})
 
     return new_item
 
@@ -77,8 +77,7 @@ def read_all(db: Session):
     try:
         result = db.query(model.Payment).all()
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        raise handle_database_error(e, operation="payments read_all")
     return result
 
 
@@ -88,8 +87,7 @@ def read_one(db: Session, item_id):
         if not item:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Id not found!")
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        raise handle_database_error(e, operation="payment read_one", log_context={"item_id": item_id})
     return item
 
 
@@ -102,8 +100,7 @@ def update(db: Session, item_id, request):
         item.update(update_data, synchronize_session=False)
         db.commit()
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        raise handle_database_error(e, operation="payment update", log_context={"item_id": item_id})
     return item.first()
 
 
@@ -115,8 +112,7 @@ def delete(db: Session, item_id):
         item.delete(synchronize_session=False)
         db.commit()
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        raise handle_database_error(e, operation="payment delete", log_context={"item_id": item_id})
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -134,8 +130,7 @@ def read_by_check(db: Session, check_id: int):
         payments = db.query(model.Payment).filter(model.Payment.check_id == check_id).all()
         return payments
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        raise handle_database_error(e, operation="read payments by check", log_context={"check_id": check_id})
 
 
 def get_check_payment_summary(db: Session, check_id: int):
@@ -168,8 +163,7 @@ def get_check_payment_summary(db: Session, check_id: int):
             "payments": payments
         }
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        raise handle_database_error(e, operation="get check payment summary", log_context={"check_id": check_id})
 
 
 def create_split_payment(db: Session, check_id: int, split_amounts: list[dict]):
@@ -234,5 +228,4 @@ def create_split_payment(db: Session, check_id: int, split_amounts: list[dict]):
         return created_payments
         
     except SQLAlchemyError as e:
-        error = str(e.__dict__['orig'])
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        raise handle_database_error(e, operation="create split payment", log_context={"check_id": check_id})

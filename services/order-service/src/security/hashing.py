@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 import os
 from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 from argon2.low_level import Type
 
 load_dotenv()
@@ -22,4 +23,8 @@ def hash_pin(pin: str) -> str:
     return ph.hash(pin + PEPPER)
 
 def verify_pin(hash_value: str, pin: str) -> bool:
-    return ph.verify(hash_value, pin + PEPPER)
+    try:
+        ph.verify(hash_value, pin + PEPPER)
+        return True
+    except VerifyMismatchError:
+        return False

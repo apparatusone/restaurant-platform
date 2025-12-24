@@ -15,7 +15,9 @@ def process_stripe_payment(amount_cents: int, order_id: int, customer_name: str 
         import time
         time.sleep(0.5)  # simulate api call delay
 
-        print("Mock stripe payment processed")
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info("Mock stripe payment processed")
         
         return {
             "success": True,

@@ -5,6 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 import logging
 from ..schemas.staff import StaffCreate, StaffUpdate
 from ..security.hashing import hash_pin
+from shared.utils.error_handlers import handle_database_error
 
 logger = logging.getLogger(__name__)
 
@@ -25,20 +26,20 @@ def create(db: Session, request: StaffCreate):
         db.add(new_staff)
         db.commit()
         db.refresh(new_staff)
-    except SQLAlchemyError:
-        # log full stack trace server-side; 
-        # return a generic message to clients to avoid leaking DB details
-        logger.exception("Database error during staff creation")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Database error")
+    except SQLAlchemyError as e:
+        raise handle_database_error(
+            e,
+            operation="staff creation",
+            log_context={"staff_id": request.staff_id}
+        )
 
     return new_staff
 
 def read_all(db: Session):
     try:
         result = db.query(model.Staff).all()
-    except SQLAlchemyError:
-        logger.exception("Database error during staff read_all")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Database error")
+    except SQLAlchemyError as e:
+        raise handle_database_error(e, operation="staff read_all")
     return result
 
 
@@ -47,9 +48,8 @@ def read_one(db: Session, id: int):
         item = db.query(model.Staff).filter(model.Staff.id == id).first()
         if not item:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Id not found!")
-    except SQLAlchemyError:
-        logger.exception("Database error during staff read_one")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Database error")
+    except SQLAlchemyError as e:
+        raise handle_database_error(e, operation="staff read_one", log_context={"staff_id": id})
     return item
 
 
@@ -70,9 +70,8 @@ def update(db: Session, id: int, request: StaffUpdate):
 
         db.commit()
         db.refresh(instance)
-    except SQLAlchemyError:
-        logger.exception("Database error during staff update")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Database error")
+    except SQLAlchemyError as e:
+        raise handle_database_error(e, operation="staff update", log_context={"staff_id": id})
     return instance
 
 
@@ -83,7 +82,6 @@ def delete(db: Session, id: int):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Id not found!")
         item.delete(synchronize_session=False)
         db.commit()
-    except SQLAlchemyError:
-        logger.exception("Database error during staff delete")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Database error")
+    except SQLAlchemyError as e:
+        raise handle_database_error(e, operation="staff delete", log_context={"staff_id": id})
     return Response(status_code=status.HTTP_204_NO_CONTENT)
