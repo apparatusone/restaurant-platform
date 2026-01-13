@@ -24,6 +24,7 @@
       10:
         type: bin
         name: bin_1
+        collision_shape: mesh  # Use bin.stl mesh
         offset_x: -0.04
         offset_y: -0.03
         offset_z: -0.00661
@@ -31,6 +32,7 @@
       11:
         type: bin
         name: bin_2
+        collision_shape: mesh
         offset_x: -0.04
         offset_y: -0.03
         offset_z: -0.00661
@@ -42,3 +44,5 @@
       default:
         type: cube
         name: cube
+        collision_shape: box
+        dimensions: [0.035, 0.035, 0.035]  # 35mm cube
