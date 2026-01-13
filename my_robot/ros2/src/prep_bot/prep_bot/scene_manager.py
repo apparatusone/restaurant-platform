@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Pick and Place Controller
+Scene Manager
 
-Detects objects and bins via AprilTag, executes pick-and-place operations.
+Detects objects and bins via AprilTag, publishes collision objects to MoveIt planning scene.
+Provides object pose information for motion planning.
 """
 import rclpy
 from rclpy.node import Node
@@ -60,9 +61,9 @@ def load_stl_mesh(filepath):
     return mesh
 
 
-class PickPlaceNode(Node):
+class SceneManagerNode(Node):
     def __init__(self):
-        super().__init__('pick_place')
+        super().__init__('scene_manager')
         
         # Load object config
         pkg_share = get_package_share_directory('prep_bot')
@@ -96,7 +97,7 @@ class PickPlaceNode(Node):
         # Detected objects (keyed by name)
         self.detected_objects = {}
         
-        self.get_logger().info('Pick and Place Controller Ready')
+        self.get_logger().info('Scene Manager Ready')
         self.get_logger().info('Waiting for AprilTag detections...')
     
     def publish_collision_object(self, obj_name, obj_config, pose):
@@ -204,7 +205,7 @@ class PickPlaceNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = PickPlaceNode()
+    node = SceneManagerNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
