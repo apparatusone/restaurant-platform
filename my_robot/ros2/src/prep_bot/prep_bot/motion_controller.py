@@ -3,11 +3,11 @@
 Motion Controller
 
 MoveIt interface for motion planning and execution.
-Provides high-level methods for moving to poses, attaching/detaching objects.
+Action server that wraps MoveIt's move_group action.
 """
 import rclpy
 from rclpy.node import Node
-from rclpy.action import ActionClient
+from rclpy.action import ActionServer, ActionClient, CancelResponse, GoalResponse
 from geometry_msgs.msg import PoseStamped
 from moveit_msgs.msg import (
     CollisionObject, Constraints, PositionConstraint, 
@@ -44,6 +44,16 @@ class MotionController(Node):
         # MoveIt action client
         self.move_action_client = ActionClient(self, MoveGroup, '/move_action')
         
+        # Action server for external clients (reuse MoveGroup action)
+        self.action_server = ActionServer(
+            self,
+            MoveGroup,
+            'motion_controller/move_group',
+            execute_callback=self.execute_callback,
+            goal_callback=self.goal_callback,
+            cancel_callback=self.cancel_callback
+        )
+        
         # Publishers
         self.attached_collision_pub = self.create_publisher(
             AttachedCollisionObject, '/attached_collision_object', 10
@@ -62,15 +72,8 @@ class MotionController(Node):
             self.joint_state_callback, joint_state_qos
         )
         
-        # Subscribe to motion commands
-        self.create_subscription(
-            PoseStamped, '/motion/target_pose',
-            self.target_pose_callback, 10
-        )
-        
         # State
-        self.current_goal_handle = None
-        self.motion_in_progress = False
+        self.current_moveit_goal_handle = None
         
         exec_status = "ENABLED" if self.execute_motion else "DISABLED"
         self.get_logger().info(f'Motion Controller Ready (execution: {exec_status})')
@@ -87,105 +90,61 @@ class MotionController(Node):
                 if idx < len(msg.position):
                     self.current_joint_positions[i] = msg.position[idx]
     
-    def target_pose_callback(self, msg):
-        """Handle incoming target pose requests."""
-        if self.motion_in_progress:
-            self.get_logger().warn('Motion already in progress, ignoring request')
-            return
-        
-        self.plan_and_move(msg)
+    def goal_callback(self, goal_request):
+        """Accept or reject incoming action goals."""
+        self.get_logger().info('Received motion goal')
+        return GoalResponse.ACCEPT
     
-    def plan_and_move(self, target_pose, position_tolerance=None):
-        """
-        Plan and execute motion to target pose.
+    def cancel_callback(self, goal_handle):
+        """Handle cancellation requests."""
+        self.get_logger().info('Received cancel request')
+        return CancelResponse.ACCEPT
+    
+    async def execute_callback(self, goal_handle):
+        """Execute the MoveGroup action - just forward to MoveIt."""
+        self.get_logger().info('Executing motion goal')
         
-        Args:
-            target_pose: PoseStamped target
-            position_tolerance: Override default position tolerance (meters)
-        """
+        # Forward goal directly to MoveIt
+        moveit_goal = goal_handle.request
+        
+        # Override with our configured parameters
+        moveit_goal.request.num_planning_attempts = self.planning_attempts
+        moveit_goal.request.allowed_planning_time = self.planning_time
+        moveit_goal.request.max_velocity_scaling_factor = self.velocity_scaling
+        moveit_goal.request.max_acceleration_scaling_factor = self.acceleration_scaling
+        moveit_goal.planning_options.plan_only = not self.execute_motion
+        
         if not self.move_action_client.wait_for_server(timeout_sec=2.0):
             self.get_logger().error('MoveIt action server not available!')
-            return False
+            goal_handle.abort()
+            return goal_handle.request
         
-        goal = MoveGroup.Goal()
-        goal.request.group_name = 'robot_arm'
-        goal.request.num_planning_attempts = self.planning_attempts
-        goal.request.allowed_planning_time = self.planning_time
-        goal.request.max_velocity_scaling_factor = self.velocity_scaling
-        goal.request.max_acceleration_scaling_factor = self.acceleration_scaling
+        # Send to MoveIt
+        send_goal_future = self.move_action_client.send_goal_async(moveit_goal)
+        await send_goal_future
         
-        # Position constraint
-        constraints = Constraints()
-        pos_constraint = PositionConstraint()
-        pos_constraint.header.frame_id = 'base_link'
-        pos_constraint.link_name = 'grasp_frame'
+        moveit_goal_handle = send_goal_future.result()
+        if not moveit_goal_handle or not moveit_goal_handle.accepted:
+            self.get_logger().error('MoveIt goal rejected!')
+            goal_handle.abort()
+            return goal_handle.request
         
-        bounding_volume = BoundingVolume()
-        sphere = SolidPrimitive()
-        sphere.type = SolidPrimitive.SPHERE
-        tolerance = position_tolerance if position_tolerance else self.position_tolerance
-        sphere.dimensions = [tolerance]
-        bounding_volume.primitives = [sphere]
-        bounding_volume.primitive_poses = [target_pose.pose]
-        pos_constraint.constraint_region = bounding_volume
-        pos_constraint.weight = 1.0
+        self.get_logger().info('MoveIt goal accepted, planning...')
         
-        constraints.position_constraints = [pos_constraint]
-        goal.request.goal_constraints = [constraints]
+        # Wait for result
+        result_future = moveit_goal_handle.get_result_async()
+        await result_future
         
-        # Plan only or plan+execute based on parameter
-        goal.planning_options.plan_only = not self.execute_motion
-        goal.planning_options.planning_scene_diff.is_diff = True
-        goal.planning_options.planning_scene_diff.robot_state.is_diff = True
+        result = result_future.result()
         
-        self.get_logger().info(f'Planning to ({target_pose.pose.position.x:.3f}, '
-                              f'{target_pose.pose.position.y:.3f}, '
-                              f'{target_pose.pose.position.z:.3f})')
-        if not self.execute_motion:
-            self.get_logger().info('(plan only - execution disabled)')
+        if result.result.error_code.val == 1:
+            self.get_logger().info('✓ Motion succeeded!')
+            goal_handle.succeed()
+        else:
+            self.get_logger().error(f'Motion failed: error code {result.result.error_code.val}')
+            goal_handle.abort()
         
-        self.motion_in_progress = True
-        future = self.move_action_client.send_goal_async(goal)
-        future.add_done_callback(self.goal_response_callback)
-        
-        return True
-    
-    def goal_response_callback(self, future):
-        """Handle goal acceptance/rejection."""
-        goal_handle = future.result()
-        if not goal_handle or not goal_handle.accepted:
-            self.get_logger().error('Goal rejected!')
-            self.motion_in_progress = False
-            return
-        
-        self.current_goal_handle = goal_handle
-        self.get_logger().info('Goal accepted, planning...')
-        result_future = goal_handle.get_result_async()
-        result_future.add_done_callback(self.result_callback)
-    
-    def result_callback(self, future):
-        """Handle planning/execution result."""
-        result = future.result()
-        error_code = result.result.error_code.val if result else -1
-        
-        self.motion_in_progress = False
-        self.current_goal_handle = None
-        
-        if error_code != 1:
-            self.get_logger().error(f'Motion failed: error code {error_code}')
-            return
-        
-        self.get_logger().info('✓ Motion succeeded!')
-        
-        # Update joint positions from trajectory
-        if self.execute_motion:
-            trajectory = result.result.planned_trajectory
-            if trajectory.joint_trajectory.points:
-                final = trajectory.joint_trajectory.points[-1]
-                names = trajectory.joint_trajectory.joint_names
-                for i, name in enumerate(self.joint_names[:3]):
-                    if name in names:
-                        self.current_joint_positions[i] = final.positions[names.index(name)]
+        return result.result
     
     def attach_object(self, object_id, link_name='grasp_frame'):
         """
