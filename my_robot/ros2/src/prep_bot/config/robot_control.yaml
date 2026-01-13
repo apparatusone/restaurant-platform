@@ -1,0 +1,14 @@
+# Robot Control Configuration
+camera_calibration:
+  ros__parameters:
+    calibration_samples: 10  # Number of tag detections to average
+    
+    # Tag 12 offset from linear_carriage origin (meters)
+    tag_12_offset_x: -0.0562
+    tag_12_offset_y: -0.05665
+    tag_12_offset_z: 0.03135
+    
+    # Carriage home position relative to base_link (from URDF)
+    carriage_home_x: -0.4061
+    carriage_home_y: 0.0
+    carriage_home_z: 0.0308

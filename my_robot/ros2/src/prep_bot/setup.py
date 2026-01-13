@@ -33,6 +33,7 @@ setup(
         'console_scripts': [
             'record3d_bridge = prep_bot.record3d_bridge:main',
             'pick_place = prep_bot.pick_place:main',
+            'camera_calibration = prep_bot.camera_calibration_node:main',
         ],
     },
 )

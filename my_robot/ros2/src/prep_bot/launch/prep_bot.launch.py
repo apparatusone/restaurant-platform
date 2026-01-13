@@ -10,6 +10,7 @@ def generate_launch_description():
     pkg_share = get_package_share_directory('prep_bot')
     apriltag_launch = os.path.join(pkg_share, 'launch', 'apriltag.launch.py')
     rviz_config = os.path.join(pkg_share, 'rviz', 'main.rviz')
+    robot_control_config = os.path.join(pkg_share, 'config', 'robot_control.yaml')
     
     # MoveIt config
     moveit_config = MoveItConfigsBuilder("prep_bot", package_name="robot_moveit_config").to_moveit_configs()
@@ -37,30 +38,20 @@ def generate_launch_description():
             output='screen'
         ),
         
-        # place the camera in the world
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='camera_base_link',
-            arguments=['0', '0', '0.5', '-1.57079632679', '0', '-1.57079632679', 'world', 'camera_link'],
-            output='screen'
-        ),
-        
-        # camera optical frame orientation (down)
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='camera_optical_frame',
-            arguments=['0', '0', '0', '0', '-3.1415926536', '-1.57079632679', 
-                      'camera_link', 'camera_color_frame'],
-            output='screen'
-        ),
-        
         # Record3D camera bridge
         Node(
             package='prep_bot',
             executable='record3d_bridge',
             name='record3d_bridge',
+            output='screen'
+        ),
+        
+        # Camera calibration node (publishes base_link -> camera_color_frame)
+        Node(
+            package='prep_bot',
+            executable='camera_calibration',
+            name='camera_calibration',
+            parameters=[robot_control_config],
             output='screen'
         ),
         
