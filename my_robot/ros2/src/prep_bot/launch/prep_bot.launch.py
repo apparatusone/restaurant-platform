@@ -66,11 +66,11 @@ def generate_launch_description():
             launch_arguments={'log_level': 'error'}.items()
         ),
         
-        # Pick and place controller
+        # Scene manager (collision objects)
         Node(
             package='prep_bot',
-            executable='pick_place',
-            name='pick_place',
+            executable='scene_manager',
+            name='scene_manager',
             output='screen'
         ),
         
