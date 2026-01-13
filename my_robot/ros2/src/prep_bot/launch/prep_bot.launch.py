@@ -5,7 +5,7 @@ import os
 
 def generate_launch_description():
     pkg_share = get_package_share_directory('prep_bot')
-    rviz_config = os.path.join(pkg_share, 'rviz', 'camera.rviz')
+    rviz_config = os.path.join(pkg_share, 'rviz', 'main.rviz')
     
     return LaunchDescription([
         Node(
