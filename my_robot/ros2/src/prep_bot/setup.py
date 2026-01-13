@@ -33,6 +33,7 @@ setup(
         'console_scripts': [
             'record3d_bridge = prep_bot.record3d_bridge:main',
             'scene_manager = prep_bot.scene_manager:main',
+            'motion_controller = prep_bot.motion_controller:main',
             'camera_calibration = prep_bot.camera_calibration_node:main',
         ],
     },

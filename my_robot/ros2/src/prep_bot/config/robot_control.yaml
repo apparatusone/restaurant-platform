@@ -1,4 +1,13 @@
 # Robot Control Configuration
+
+motion_controller:
+  ros__parameters:
+    planning_attempts: 10
+    planning_time: 5.0
+    velocity_scaling: 0.12
+    acceleration_scaling: 0.12
+    position_tolerance: 0.005
+    execute_motion: false  # Safety: plan only, no execution
 camera_calibration:
   ros__parameters:
     calibration_samples: 10  # Number of tag detections to average

@@ -15,10 +15,6 @@ def generate_launch_description():
     # MoveIt config
     moveit_config = MoveItConfigsBuilder("prep_bot", package_name="robot_moveit_config").to_moveit_configs()
     
-    # MoveIt config package
-    moveit_config_pkg = get_package_share_directory('robot_moveit_config')
-    moveit_launch = os.path.join(moveit_config_pkg, 'launch', 'move_group.launch.py')
-    
     return LaunchDescription([
         # Publish robot_description for RViz
         Node(
@@ -60,10 +56,17 @@ def generate_launch_description():
             PythonLaunchDescriptionSource(apriltag_launch)
         ),
         
-        # Include MoveIt move_group
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(moveit_launch),
-            launch_arguments={'log_level': 'error'}.items()
+        # Move group node (launched directly like restaurant_robot)
+        Node(
+            package='moveit_ros_move_group',
+            executable='move_group',
+            output='screen',
+            parameters=[
+                moveit_config.to_dict(),
+                moveit_config.robot_description_kinematics,
+                {'use_sim_time': False},
+            ],
+            arguments=['--ros-args', '--log-level', 'info'],
         ),
         
         # Scene manager (collision objects)
@@ -74,11 +77,25 @@ def generate_launch_description():
             output='screen'
         ),
         
+        # Motion controller (MoveIt planning)
+        Node(
+            package='prep_bot',
+            executable='motion_controller',
+            name='motion_controller',
+            parameters=[robot_control_config],
+            output='screen'
+        ),
+        
         # RViz2
         Node(
             package='rviz2',
             executable='rviz2',
             name='rviz2',
-            arguments=['-d', rviz_config]
+            arguments=['-d', rviz_config],
+            parameters=[
+                moveit_config.robot_description,
+                moveit_config.robot_description_semantic,
+                moveit_config.robot_description_kinematics,
+            ],
         ),
     ])
