@@ -1,0 +1,10 @@
+moveit_setup_assistant_config:
+  urdf:
+    package: prep_bot
+    relative_path: urdf/robot.urdf
+  srdf:
+    relative_path: config/prep_bot.srdf
+  package_settings:
+    author_name: devin
+    author_email: maintainer@example.com
+    generated_timestamp: 1766625795

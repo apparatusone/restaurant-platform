@@ -1,0 +1,7 @@
+# Default initial positions for prep_bot's ros2_control fake system
+
+initial_positions:
+  elbow_joint: 0
+  gripper_left_joint: 0
+  linear_joint: 0
+  shoulder_joint: 0
