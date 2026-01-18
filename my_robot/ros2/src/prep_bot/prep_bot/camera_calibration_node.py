@@ -2,13 +2,14 @@
 """
 Camera Calibration Node
 
-Calibrates camera position by detecting AprilTag 12 on the linear carriage.
+Calibrates camera position by detecting AprilTag on the linear carriage.
 Publishes static TF: world -> camera_color_frame
 """
 import rclpy
 from rclpy.node import Node
 from apriltag_msgs.msg import AprilTagDetectionArray
 from geometry_msgs.msg import TransformStamped
+from std_srvs.srv import Trigger
 from tf2_ros import StaticTransformBroadcaster, TransformListener, Buffer
 from scipy.spatial.transform import Rotation
 import numpy as np
@@ -20,40 +21,21 @@ class CameraCalibrationNode(Node):
     def __init__(self):
         super().__init__('camera_calibration')
         
-        # Declare parameters with types
-        self.declare_parameter('tag_12_offset_x', 0.0)
-        self.declare_parameter('tag_12_offset_y', 0.0)
-        self.declare_parameter('tag_12_offset_z', 0.0)
+        self.declare_parameter('calibration_tag', 12)
+        self.declare_parameter('calibration_samples', 10)
+        self.declare_parameter('tag_c_offset_x', 0.0)
+        self.declare_parameter('tag_c_offset_y', 0.0)
+        self.declare_parameter('tag_c_offset_z', 0.0)
         self.declare_parameter('carriage_home_x', 0.0)
         self.declare_parameter('carriage_home_y', 0.0)
         self.declare_parameter('carriage_home_z', 0.0)
-        self.declare_parameter('calibration_samples', 10)
-        
-        # Validate all parameters were loaded from config
-        required_params = [
-            'tag_12_offset_x', 'tag_12_offset_y', 'tag_12_offset_z',
-            'carriage_home_x', 'carriage_home_y', 'carriage_home_z',
-            'calibration_samples'
-        ]
-        
-        missing_params = []
-        for param_name in required_params:
-            if not self.has_parameter(param_name):
-                missing_params.append(param_name)
-        
-        if missing_params:
-            self.get_logger().error(
-                f'Required parameters not loaded from config: {", ".join(missing_params)}'
-            )
-            self.get_logger().error('Ensure robot_control.yaml is loaded in launch file')
-            raise RuntimeError('Missing required configuration')
         
         # Get parameter values
         self.num_samples = self.get_parameter('calibration_samples').value
-        self.tag_12_offset = np.array([
-            self.get_parameter('tag_12_offset_x').value,
-            self.get_parameter('tag_12_offset_y').value,
-            self.get_parameter('tag_12_offset_z').value
+        self.tag_c_offset = np.array([
+            self.get_parameter('tag_c_offset_x').value,
+            self.get_parameter('tag_c_offset_y').value,
+            self.get_parameter('tag_c_offset_z').value
         ])
         self.carriage_home = np.array([
             self.get_parameter('carriage_home_x').value,
@@ -64,6 +46,9 @@ class CameraCalibrationNode(Node):
         # State
         self.calibration_samples = []
         self.calibrated = False
+        
+        # Calibration status service
+        self.create_service(Trigger, '/camera_calibration_status', self.handle_status_request)
         
         # TF buffer and listener
         self.tf_buffer = Buffer()
@@ -81,15 +66,14 @@ class CameraCalibrationNode(Node):
         )
         
         self.get_logger().info('Camera calibration node started')
-        self.get_logger().info(f'Collecting {self.num_samples} samples of tag 12...')
+        self.get_logger().debug(f'Collecting {self.num_samples} samples of calibration tag...')
     
     def detection_callback(self, msg):
         if self.calibrated:
             return
         
-        # Look for tag 12
         for detection in msg.detections:
-            if detection.id == 12:
+            if detection.id == self.get_parameter('calibration_tag').value:
                 tag_frame = f'{detection.family}:{detection.id}'
                 
                 try:
@@ -114,20 +98,20 @@ class CameraCalibrationNode(Node):
                         ])
                     })
                     
-                    self.get_logger().info(f'Calibration sample {len(self.calibration_samples)}/{self.num_samples}')
+                    self.get_logger().debug(f'Calibration sample {len(self.calibration_samples)}/{self.num_samples}')
                     
                     # Check if we have enough samples
                     if len(self.calibration_samples) >= self.num_samples:
                         self.compute_calibration()
                         self.calibrated = True
                     
-                except Exception:
-                    pass  # TF lookup failed
+                except Exception as e:
+                    self.get_logger().debug(f'TF lookup failed for {tag_frame}: {e}')
                 
                 break
     
     def compute_calibration(self):
-        """Compute camera transform from tag 12 detections."""
+        """Compute camera transform from tag detections."""
         # Average position and orientation
         positions = np.array([s['position'] for s in self.calibration_samples])
         orientations = np.array([s['orientation'] for s in self.calibration_samples])
@@ -136,8 +120,8 @@ class CameraCalibrationNode(Node):
         avg_quat = np.mean(orientations, axis=0)
         avg_quat = avg_quat / np.linalg.norm(avg_quat)  # Normalize quaternion
         
-        # Tag 12 position in base_link when carriage is homed
-        tag_in_base = self.carriage_home + self.tag_12_offset
+        # Tag position in base_link when carriage is homed
+        tag_in_base = self.carriage_home + self.tag_c_offset
         
         # R_tag_in_optical: how tag frame appears in optical frame
         R_tag_in_optical = Rotation.from_quat(avg_quat)
@@ -173,9 +157,15 @@ class CameraCalibrationNode(Node):
         self.tf_broadcaster.sendTransform(t)
         
         self.get_logger().info('=== Camera Calibrated ===')
-        self.get_logger().info(f'Position: ({t_camera_in_base[0]:.4f}, {t_camera_in_base[1]:.4f}, {t_camera_in_base[2]:.4f})')
-        self.get_logger().info(f'Quaternion: ({quat[0]:.4f}, {quat[1]:.4f}, {quat[2]:.4f}, {quat[3]:.4f})')
-        self.get_logger().info('Calibration complete. Node will continue running.')
+        self.get_logger().debug(f'Position: ({t_camera_in_base[0]:.4f}, {t_camera_in_base[1]:.4f}, {t_camera_in_base[2]:.4f})')
+        self.get_logger().debug(f'Quaternion: ({quat[0]:.4f}, {quat[1]:.4f}, {quat[2]:.4f}, {quat[3]:.4f})')
+        self.get_logger().info(f'\n')
+    
+    def handle_status_request(self, request, response):
+        """Handle calibration status service request."""
+        response.success = self.calibrated
+        response.message = 'Camera calibrated' if self.calibrated else 'Camera not yet calibrated'
+        return response
 
 
 def main(args=None):
