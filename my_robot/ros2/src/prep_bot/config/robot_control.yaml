@@ -2,22 +2,35 @@
 
 motion_controller:
   ros__parameters:
-    planning_attempts: 10
-    planning_time: 5.0
-    velocity_scaling: 0.12
-    acceleration_scaling: 0.12
+    planning_attempts: 20
+    planning_time: 15.0
+    velocity_scaling: 0.20
+    acceleration_scaling: 0.20
     position_tolerance: 0.005
-    execute_motion: false  # Safety: plan only, no execution
+    execute_motion: true
+
 camera_calibration:
   ros__parameters:
+    calibration_tag: 12 # tag to use for calibration
     calibration_samples: 10  # Number of tag detections to average
     
-    # Tag 12 offset from linear_carriage origin (meters)
-    tag_12_offset_x: -0.0562
-    tag_12_offset_y: -0.05665
-    tag_12_offset_z: 0.03135
+    # Tag offset from linear_carriage origin (meters)
+    tag_c_offset_x: 0.06865
+    tag_c_offset_y: -0.05665
+    tag_c_offset_z: 0.03135
     
     # Carriage home position relative to base_link (from URDF)
     carriage_home_x: -0.4061
     carriage_home_y: 0.0
     carriage_home_z: 0.0308
+
+scene_manager:
+  ros__parameters:
+    # Workspace visualization (cylinder representing robot reach)
+    workspace_radius: 0.29  # meters
+    shoulder_z: 0.211  # meters (height of shoulder joint)
+    linear_home_x: -0.4061  # meters (X at home position)
+    linear_max_x: 0.4062  # meters (X at max travel)
+    
+    # Default cube dimensions
+    default_cube_size: 0.035  # meters (35mm cubes)
