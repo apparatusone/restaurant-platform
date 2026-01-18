@@ -1,5 +1,7 @@
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
+from launch.conditions import IfCondition
+from launch.substitutions import LaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
@@ -9,13 +11,22 @@ import os
 def generate_launch_description():
     pkg_share = get_package_share_directory('prep_bot')
     apriltag_launch = os.path.join(pkg_share, 'launch', 'apriltag.launch.py')
+    api_bridge_launch = os.path.join(pkg_share, 'launch', 'api_bridge.launch.py')
     rviz_config = os.path.join(pkg_share, 'rviz', 'main.rviz')
     robot_control_config = os.path.join(pkg_share, 'config', 'robot_control.yaml')
+    
+    enable_api_arg = DeclareLaunchArgument(
+        'enable_api',
+        default_value='true',
+        description='Enable API bridge (HTTP server)'
+    )
     
     # MoveIt config
     moveit_config = MoveItConfigsBuilder("prep_bot", package_name="robot_moveit_config").to_moveit_configs()
     
     return LaunchDescription([
+        enable_api_arg,
+        
         # Publish robot_description for RViz
         Node(
             package='robot_state_publisher',
@@ -84,6 +95,12 @@ def generate_launch_description():
             name='motion_controller',
             parameters=[robot_control_config],
             output='screen'
+        ),
+        
+        # API Bridge (conditionally included)
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(api_bridge_launch),
+            condition=IfCondition(LaunchConfiguration('enable_api'))
         ),
         
         # RViz2

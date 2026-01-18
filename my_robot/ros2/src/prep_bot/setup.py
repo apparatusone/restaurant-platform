@@ -7,7 +7,8 @@ package_name = 'prep_bot'
 setup(
     name=package_name,
     version='0.0.0',
-    packages=find_packages(exclude=['test']),
+    packages=find_packages(exclude=['test']) + ['scripts'],
+    package_dir={'scripts': 'scripts'},
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
@@ -35,6 +36,7 @@ setup(
             'scene_manager = prep_bot.scene_manager:main',
             'motion_controller = prep_bot.motion_controller:main',
             'camera_calibration = prep_bot.camera_calibration_node:main',
+            'api_bridge = prep_bot.api_bridge:main',
         ],
     },
 )
