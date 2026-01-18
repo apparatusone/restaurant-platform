@@ -3,12 +3,12 @@
     image_transport: raw
     family: 36h11
     size: 0.03186  # Default size
-    max_hamming: 1
+    max_hamming: 0
     z_aligned: true
     
     # Tag-specific sizes
     tag:
-      ids: [10, 11, 12]
+      ids: [14, 11, 12]
       sizes: [0.03984, 0.03984, 0.03984]
     
     detector:
@@ -21,7 +21,7 @@
     
     # Object definitions by tag ID
     objects:
-      10:
+      14:
         type: bin
         name: bin_1
         collision_shape: mesh  # Use bin.stl mesh
