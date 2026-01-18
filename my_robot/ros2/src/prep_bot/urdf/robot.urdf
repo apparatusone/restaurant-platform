@@ -127,7 +127,7 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0.1524" rpy="0 0 0"/>
+      <origin xyz="0.02 0 0.1524" rpy="0 0 0"/>
       <geometry>
         <box size="0.080 0.0423 0.0423"/>
       </geometry>
@@ -167,7 +167,7 @@
     <child link="elbow_link"/>
     <origin xyz="0 0 0.1524" rpy="0 0 0"/>  <!-- 152.4mm above shoulder joint -->
     <axis xyz="1 0 0"/>  <!-- X-axis rotation (pitch) -->
-    <limit lower="-1.57" upper="1.57" effort="50" velocity="1.0"/>  <!-- ±90 degrees, adjust as needed -->
+    <limit lower="-2.61" upper="2.61" effort="50" velocity="1.0"/>  <!-- ±150 degrees-->
   </joint>
 
   <link name="gripper_body">
@@ -207,9 +207,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0.00059 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.00382 0.015 0.014456"/>
+        <box size="0.005 0.03 0.02"/>
       </geometry>
     </collision>
   </link>
@@ -217,9 +217,9 @@
   <joint name="gripper_left_joint" type="prismatic">
     <parent link="elbow_link"/>
     <child link="gripper_left"/>
-    <origin xyz="0.01191 0 0.137737" rpy="0 0 0"/>  <!-- Shifted 10mm in X + 1.91mm (half thickness) -->
+    <origin xyz="0.01591 0 0.137737" rpy="0 0 0"/>  <!-- Closed position: 4mm from center + 1.91mm + 10mm offset -->
     <axis xyz="1 0 0"/>  <!-- X-axis (open/close) -->
-    <limit lower="0" upper="0.02" effort="10" velocity="0.05"/>  <!-- 0-20mm travel -->
+    <limit lower="0" upper="0.0225" effort="10" velocity="0.05"/>  <!-- 0 to 22.5mm travel (close to open) -->
   </joint>
 
   <!-- Right gripper paddle -->
@@ -234,9 +234,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="-0.00059 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.00382 0.015 0.014456"/>
+        <box size="0.005 0.03 0.02"/>
       </geometry>
     </collision>
   </link>
@@ -244,11 +244,12 @@
   <joint name="gripper_right_joint" type="prismatic">
     <parent link="elbow_link"/>
     <child link="gripper_right"/>
-    <origin xyz="0.00809 0 0.137737" rpy="0 0 0"/>  <!-- Shifted 10mm in X - 1.91mm (half thickness) -->
+    <origin xyz="0.00409 0 0.137737" rpy="0 0 0"/>  <!-- Closed position: -4mm from center - 1.91mm + 10mm offset -->
     <axis xyz="1 0 0"/>  <!-- Same X-axis -->
-    <limit lower="-0.02" upper="0" effort="10" velocity="0.05"/>  <!-- -20mm to 0 travel (opposite) -->
+    <limit lower="-0.0225" upper="0" effort="10" velocity="0.05"/>  <!-- -22.5mm to 0 travel (open to close) -->
     <mimic joint="gripper_left_joint" multiplier="-1" offset="0"/>  <!-- Mirrors left paddle -->
   </joint>
+
 
   <!-- Grasp frame - point between gripper paddles -->
   <link name="grasp_frame">
