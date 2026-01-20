@@ -36,6 +36,17 @@ task_controller:
     # Target bin for placing
     target_bin_id: 11
 
+trajectory_executor:
+  ros__parameters:
+    stm32_buffer_size: 500
+    command_timeout: 2.0
+    trajectory_timeout_margin: 5.0
+    waypoint_log_interval: 100
+    joint_map:
+      linear_joint: 0
+      shoulder_joint: 2
+      elbow_joint: 3
+
 camera_calibration:
   ros__parameters:
     calibration_tag: 12 # tag to use for calibration

@@ -39,6 +39,7 @@ setup(
             'hardware_interface = prep_bot.hardware_interface:main',
             'task_controller = prep_bot.task_controller:main',
             'api_bridge = prep_bot.api_bridge:main',
+            'trajectory_executor = prep_bot.trajectory_executor_node:main',
         ],
     },
 )

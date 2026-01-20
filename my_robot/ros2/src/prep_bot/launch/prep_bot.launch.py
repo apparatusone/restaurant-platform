@@ -115,6 +115,15 @@ def generate_launch_description():
             output='screen'
         ),
         
+        # Trajectory executor (executes MoveIt trajectories via STM32)
+        Node(
+            package='prep_bot',
+            executable='trajectory_executor',
+            name='trajectory_executor',
+            parameters=[robot_control_config],
+            output='screen'
+        ),
+        
         # API Bridge (conditionally included)
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(api_bridge_launch),
