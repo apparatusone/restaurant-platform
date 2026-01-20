@@ -1,0 +1,272 @@
+<?xml version="1.0"?>
+<robot name="prep_bot">
+
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.0668 0.1549 0.0540"/>  <!-- 42" × 6.1" × 2.125" rail -->
+      </geometry>
+      <material name="gray">
+        <color rgba="0.5 0.5 0.5 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.0668 0.1549 0.0540"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="linear_carriage">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1524 0.1533 0.0617"/>  <!-- 6" × 6.035" × 2.43" carriage -->
+      </geometry>
+      <material name="blue">
+        <color rgba="0.2 0.4 0.8 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1524 0.1533 0.0617"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="linear_joint" type="prismatic">
+    <parent link="base_link"/>
+    <child link="linear_carriage"/>
+    <origin xyz="-0.4061 0 0.0308" rpy="0 0 0"/>  <!-- Start at left endstop (home), offset to center rail visually -->
+    <axis xyz="1 0 0"/>
+    <limit lower="0" upper="0.8123" effort="100" velocity="0.1"/>  <!-- 0 (left) to 31.98" (right) -->
+  </joint>
+
+  <link name="rotation_link">
+    <!-- Rotation cylinder -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="0.1" radius="0.0489"/>  <!-- 100mm height, 48.9mm radius -->
+      </geometry>
+      <material name="red">
+        <color rgba="0.8 0.2 0.2 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="0.1" radius="0.0489"/>
+      </geometry>
+    </collision>
+    
+    <!-- Shoulder motor (part of rotation_link) -->
+    <visual>
+      <origin xyz="0 0 0.093" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.120 0.056 0.056"/>  <!-- 56mm × 56mm × 120mm motor -->
+      </geometry>
+      <material name="motor_gray">
+        <color rgba="0.4 0.4 0.4 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.093" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.120 0.056 0.056"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- ORIGINAL rotation_joint - COMMENTED OUT (motor broken, waiting for replacement)
+  <joint name="rotation_joint" type="revolute">
+    <parent link="linear_carriage"/>
+    <child link="rotation_link"/>
+    <origin xyz="0 0 0.0809" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="2.0"/>
+  </joint>
+  -->
+
+  <!-- TEMPORARY: Fixed rotation joint while motor is broken -->
+  <joint name="rotation_joint" type="fixed">
+    <parent link="linear_carriage"/>
+    <child link="rotation_link"/>
+    <origin xyz="0 0 0.0872" rpy="0 0 0"/>
+  </joint>
+
+  <link name="shoulder_link">
+    <!-- Shoulder link plate -->
+    <visual>
+      <origin xyz="0.07129 0 0.0762" rpy="0 0 1.5708"/>
+      <geometry>
+        <box size="0.0244 0.0053 0.1524"/>
+      </geometry>
+      <material name="orange">
+        <color rgba="1.0 0.5 0.0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.07129 0 0.0762" rpy="0 0 1.5708"/>
+      <geometry>
+        <box size="0.0244 0.0053 0.1524"/>
+      </geometry>
+    </collision>
+    
+    <!-- Elbow motor (part of shoulder_link) -->
+    <visual>
+      <origin xyz="0.02 0 0.1524" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.080 0.0423 0.0423"/>  <!-- 80mm × 42.3mm × 42.3mm motor -->
+      </geometry>
+      <material name="motor_gray">
+        <color rgba="0.4 0.4 0.4 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.02 0 0.1524" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.080 0.0423 0.0423"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="shoulder_joint" type="revolute">
+    <parent link="rotation_link"/>
+    <child link="shoulder_link"/>
+    <origin xyz="0 0 0.093" rpy="0 0 0"/>  <!-- 43mm above cylinder top, first hole aligns here -->
+    <axis xyz="1 0 0"/>  <!-- X-axis rotation (pitch) -->
+    <limit lower="-2.00" upper="2.37" effort="50" velocity="1.0"/>  <!-- ±90 degrees, adjust as needed -->
+  </joint>
+
+  <link name="elbow_link">
+    <visual>
+      <!-- 68.6mm / 2 -->
+      <origin xyz="0 0 0.0343" rpy="0 0 1.5708"/>
+      <geometry>
+        <box size="0.0244 0.0053 0.0686"/>
+      </geometry>
+      <material name="transparent_gray">
+        <color rgba="0.5 0.5 0.5 0.3"/>
+      </material>
+    </visual>
+    <collision>
+      <!-- Minimal collision sphere to satisfy URDF requirements -->
+      <origin xyz="0 0 0.0343" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.005"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="elbow_joint" type="revolute">
+    <parent link="shoulder_link"/>
+    <child link="elbow_link"/>
+    <origin xyz="0 0 0.1524" rpy="0 0 0"/>  <!-- 152.4mm above shoulder joint -->
+    <axis xyz="1 0 0"/>  <!-- X-axis rotation (pitch) -->
+    <limit lower="-2.61" upper="2.61" effort="50" velocity="1.0"/>  <!-- ±150 degrees-->
+  </joint>
+
+  <link name="gripper_body">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.054761 0.032735 0.051896"/>  <!-- 54.761mm × 32.735mm × 51.896mm gripper body -->
+      </geometry>
+      <material name="green">
+        <color rgba="0.2 0.8 0.2 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.054761 0.032735 0.051896"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="gripper_joint" type="fixed">
+    <parent link="elbow_link"/>
+    <child link="gripper_body"/>
+     <!-- bottom is 68.6 + 51.896/2 above elbow joint -->
+    <origin xyz="0.01 0 0.0945" rpy="0 0 0"/>  <!-- Shifted 10mm in X for print tolerance -->
+  </joint>
+
+  <!-- Left gripper paddle -->
+  <link name="gripper_left">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.00382 0.015 0.014456"/>
+      </geometry>
+      <material name="dark_gray">
+        <color rgba="0.3 0.3 0.3 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.00059 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.005 0.03 0.02"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="gripper_left_joint" type="prismatic">
+    <parent link="elbow_link"/>
+    <child link="gripper_left"/>
+    <origin xyz="0.01591 0 0.137737" rpy="0 0 0"/>  <!-- Closed position: 4mm from center + 1.91mm + 10mm offset -->
+    <axis xyz="1 0 0"/>  <!-- X-axis (open/close) -->
+    <limit lower="0" upper="0.0225" effort="10" velocity="0.05"/>  <!-- 0 to 22.5mm travel (close to open) -->
+  </joint>
+
+  <!-- Right gripper paddle -->
+  <link name="gripper_right">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.00382 0.015 0.014456"/>
+      </geometry>
+      <material name="dark_gray">
+        <color rgba="0.3 0.3 0.3 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.00059 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.005 0.03 0.02"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="gripper_right_joint" type="prismatic">
+    <parent link="elbow_link"/>
+    <child link="gripper_right"/>
+    <origin xyz="0.00409 0 0.137737" rpy="0 0 0"/>  <!-- Closed position: -4mm from center - 1.91mm + 10mm offset -->
+    <axis xyz="1 0 0"/>  <!-- Same X-axis -->
+    <limit lower="-0.0225" upper="0" effort="10" velocity="0.05"/>  <!-- -22.5mm to 0 travel (open to close) -->
+    <mimic joint="gripper_left_joint" multiplier="-1" offset="0"/>  <!-- Mirrors left paddle -->
+  </joint>
+
+
+  <!-- Grasp frame - point between gripper paddles -->
+  <link name="grasp_frame">
+    <visual>
+      <geometry>
+        <sphere radius="0.005"/>
+      </geometry>
+      <material name="red">
+        <color rgba="1 0 0 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="grasp_frame_joint" type="fixed">
+    <parent link="elbow_link"/>
+    <child link="grasp_frame"/>
+    <origin xyz="0.01 0 0.138" rpy="0 0 0"/>  <!-- Shifted 10mm in X to match gripper_body offset, 138mm in Z to center between paddles -->
+  </joint>
+
+</robot>

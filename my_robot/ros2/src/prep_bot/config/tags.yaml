@@ -1,0 +1,48 @@
+/**:
+  ros__parameters:
+    image_transport: raw
+    family: 36h11
+    size: 0.03186  # Default size
+    max_hamming: 0
+    z_aligned: true
+    
+    # Tag-specific sizes
+    tag:
+      ids: [14, 11, 12]
+      sizes: [0.03984, 0.03984, 0.03984]
+    
+    detector:
+      threads: 2
+      decimate: 1.0
+      blur: 0.0
+      refine: true
+      sharpening: 0.25
+      debug: false
+    
+    # Object definitions by tag ID
+    objects:
+      14:
+        type: bin
+        name: bin_1
+        collision_shape: mesh  # Use bin.stl mesh
+        offset_x: -0.04
+        offset_y: -0.03
+        offset_z: -0.00661
+      
+      11:
+        type: bin
+        name: bin_2
+        collision_shape: mesh
+        offset_x: -0.04
+        offset_y: -0.03
+        offset_z: -0.00661
+      
+      12:
+        type: calibration
+        name: calibration_tag
+      
+      default:
+        type: cube
+        name: cube
+        collision_shape: box
+        dimensions: [0.035, 0.035, 0.035]  # 35mm cube

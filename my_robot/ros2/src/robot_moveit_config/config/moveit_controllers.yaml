@@ -1,0 +1,22 @@
+# MoveIt uses this configuration for controller management
+
+moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
+
+moveit_simple_controller_manager:
+  controller_names:
+    - robot_arm_controller
+
+  robot_arm_controller:
+    type: FollowJointTrajectory
+    joints:
+      - linear_joint
+      - shoulder_joint
+      - elbow_joint
+    action_ns: follow_joint_trajectory
+    default: true
+
+# Increase trajectory execution timeout
+trajectory_execution:
+  allowed_execution_duration_scaling: 2.0
+  allowed_goal_duration_margin: 60.0
+  execution_duration_monitoring: false
