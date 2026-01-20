@@ -11,7 +11,7 @@ from rclpy.action import ActionServer, ActionClient, CancelResponse, GoalRespons
 from geometry_msgs.msg import PoseStamped
 from moveit_msgs.msg import (
     CollisionObject, Constraints, PositionConstraint, 
-    OrientationConstraint, BoundingVolume, AttachedCollisionObject,
+    OrientationConstraint, BoundingVolume,
     JointConstraint
 )
 from moveit_msgs.action import MoveGroup
@@ -51,11 +51,6 @@ class MotionController(Node):
             execute_callback=self.execute_callback,
             goal_callback=self.goal_callback,
             cancel_callback=self.cancel_callback
-        )
-        
-        # Publishers
-        self.attached_collision_pub = self.create_publisher(
-            AttachedCollisionObject, '/attached_collision_object', 10
         )
         
         # Joint state tracking
@@ -143,36 +138,7 @@ class MotionController(Node):
             goal_handle.abort()
         
         return result.result
-    
-    def attach_object(self, object_id, link_name='grasp_frame'):
-        """
-        Attach collision object to robot link.
-        
-        Args:
-            object_id: ID of collision object to attach
-            link_name: Robot link to attach to
-        """
-        msg = AttachedCollisionObject()
-        msg.object.id = object_id
-        msg.link_name = link_name
-        msg.object.operation = CollisionObject.ADD
-        
-        self.attached_collision_pub.publish(msg)
-        self.get_logger().info(f'Attached {object_id} to {link_name}')
-    
-    def detach_object(self, object_id):
-        """
-        Detach collision object from robot.
-        
-        Args:
-            object_id: ID of collision object to detach
-        """
-        msg = AttachedCollisionObject()
-        msg.object.id = object_id
-        msg.object.operation = CollisionObject.REMOVE
-        
-        self.attached_collision_pub.publish(msg)
-        self.get_logger().info(f'Detached {object_id}')
+
 
 def main(args=None):
     rclpy.init(args=args)
