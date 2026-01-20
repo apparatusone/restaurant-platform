@@ -97,6 +97,15 @@ def generate_launch_description():
             output='screen'
         ),
         
+        # Task controller (high-level task logic)
+        Node(
+            package='prep_bot',
+            executable='task_controller',
+            name='task_controller',
+            parameters=[robot_control_config],
+            output='screen'
+        ),
+        
         # Hardware interface (STM32 communication, publishes /joint_states)
         Node(
             package='prep_bot',

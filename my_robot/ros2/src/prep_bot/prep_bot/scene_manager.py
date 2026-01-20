@@ -71,7 +71,7 @@ class SceneManagerNode(Node):
         # Subscribers
         self.create_subscription(AprilTagDetectionArray, '/detections', self.tag_callback, 10)
         
-        # Subscribe to scene commands from pick_controller (PAUSE, RESUME, ATTACH, REMOVE)
+        # Subscribe to scene commands from task_controller (PAUSE, RESUME, ATTACH, REMOVE)
         from std_msgs.msg import String
         self.create_subscription(String, '/scene_manager/command', self.scene_command_callback, 10)
         
