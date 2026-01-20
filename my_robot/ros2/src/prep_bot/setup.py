@@ -36,6 +36,7 @@ setup(
             'scene_manager = prep_bot.scene_manager:main',
             'motion_controller = prep_bot.motion_controller:main',
             'camera_calibration = prep_bot.camera_calibration_node:main',
+            'hardware_interface = prep_bot.hardware_interface:main',
             'api_bridge = prep_bot.api_bridge:main',
         ],
     },

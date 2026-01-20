@@ -97,6 +97,15 @@ def generate_launch_description():
             output='screen'
         ),
         
+        # Hardware interface (STM32 communication, publishes /joint_states)
+        Node(
+            package='prep_bot',
+            executable='hardware_interface',
+            name='hardware_interface',
+            parameters=[robot_control_config],
+            output='screen'
+        ),
+        
         # API Bridge (conditionally included)
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(api_bridge_launch),

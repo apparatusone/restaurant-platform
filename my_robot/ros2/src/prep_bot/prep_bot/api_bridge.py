@@ -16,7 +16,7 @@ class ApiBridge(Node):
         # Publisher to send orders to kitchen controller
         self.order_publisher = self.create_publisher(String, 'new_order', 10)
         
-        # Publisher for motor commands (to serial_node)
+        # Publisher for motor commands (to hardware_interface)
         self.motor_cmd_publisher = self.create_publisher(String, 'motor_command', 10)
         
         # Publisher for pick commands (to pick_controller)
@@ -30,7 +30,7 @@ class ApiBridge(Node):
             10
         )
         
-        # Subscribe to motor feedback (from serial_node)
+        # Subscribe to motor feedback (from hardware_interface)
         self.motor_feedback_subscription = self.create_subscription(
             String,
             'motor_feedback',
@@ -96,7 +96,7 @@ class ApiBridge(Node):
             threading.Thread(target=self.process_next_order_delayed, daemon=True).start()
 
     def motor_feedback_callback(self, msg):
-        """Receive feedback from serial_node"""
+        """Receive feedback from hardware_interface"""
         self.last_motor_feedback = msg.data
         self.get_logger().debug(f'Motor feedback received: {msg.data}')
 
@@ -246,7 +246,7 @@ def get_robot_ready_status():
 
 @app.route('/robot/command', methods=['POST'])
 def robot_command():
-    """Send raw command to microcontroller via serial_node"""
+    """Send raw command to microcontroller via hardware_interface"""
     try:
         node = get_node()
         data = request.json

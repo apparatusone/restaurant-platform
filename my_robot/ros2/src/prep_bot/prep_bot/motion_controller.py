@@ -16,7 +16,6 @@ from moveit_msgs.msg import (
 )
 from moveit_msgs.action import MoveGroup
 from shape_msgs.msg import SolidPrimitive
-from std_msgs.msg import String
 from sensor_msgs.msg import JointState
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 
@@ -58,7 +57,6 @@ class MotionController(Node):
         self.attached_collision_pub = self.create_publisher(
             AttachedCollisionObject, '/attached_collision_object', 10
         )
-        self.motor_cmd_pub = self.create_publisher(String, '/motor_command', 10)
         
         # Joint state tracking
         self.joint_names = ['linear_joint', 'shoulder_joint', 'elbow_joint', 
@@ -175,19 +173,6 @@ class MotionController(Node):
         
         self.attached_collision_pub.publish(msg)
         self.get_logger().info(f'Detached {object_id}')
-    
-    def send_gripper_command(self, angle_degrees):
-        """
-        Send gripper command.
-        
-        Args:
-            angle_degrees: Gripper angle (0=closed, 155=open)
-        """
-        cmd = String()
-        cmd.data = f'GRIPPER {angle_degrees}'
-        self.motor_cmd_pub.publish(cmd)
-        self.get_logger().info(f'Gripper command: {angle_degrees}°')
-
 
 def main(args=None):
     rclpy.init(args=args)

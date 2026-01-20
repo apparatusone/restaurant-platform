@@ -9,6 +9,17 @@ motion_controller:
     position_tolerance: 0.005
     execute_motion: true
 
+hardware_interface:
+  ros__parameters:
+    port: "/dev/ttySTM32"
+    baudrate: 115200
+    reconnect_timeout: 1.0
+    status_rate: 20.0
+    default_gripper_open: [0.0225, -0.0225]
+    default_gripper_closed: [0.0, 0.0]
+    gripper_open_angle: 155
+    gripper_close_angle: 85
+
 camera_calibration:
   ros__parameters:
     calibration_tag: 12 # tag to use for calibration
@@ -16,7 +27,7 @@ camera_calibration:
     
     # Tag offset from linear_carriage origin (meters)
     tag_c_offset_x: 0.06865
-    tag_c_offset_y: -0.05665
+    tag_c_offset_y: -0.051
     tag_c_offset_z: 0.03135
     
     # Carriage home position relative to base_link (from URDF)
