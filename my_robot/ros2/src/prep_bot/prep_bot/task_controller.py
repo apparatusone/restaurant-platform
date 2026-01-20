@@ -52,11 +52,11 @@ class TaskController(Node):
         super().__init__('task_controller')
         
         # Declare parameters (no defaults - must be from config)
-        self.declare_parameter('grasp_y_offset')
-        self.declare_parameter('grasp_tolerance')
-        self.declare_parameter('lift_height')
-        self.declare_parameter('place_height')
-        self.declare_parameter('place_tolerance')
+        self.declare_parameter('grasp_y_offset', rclpy.Parameter.Type.DOUBLE)
+        self.declare_parameter('grasp_tolerance', rclpy.Parameter.Type.DOUBLE)
+        self.declare_parameter('lift_height', rclpy.Parameter.Type.DOUBLE)
+        self.declare_parameter('place_height', rclpy.Parameter.Type.DOUBLE)
+        self.declare_parameter('place_tolerance', rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter('ready_joint_linear', 0.15)
         self.declare_parameter('ready_joint_shoulder', 0.7854)
         self.declare_parameter('ready_joint_elbow', 0.7854)
@@ -93,7 +93,7 @@ class TaskController(Node):
             bin_mesh = load_stl_mesh(bin_mesh_path)
             vertices = np.array([[v.x, v.y, v.z] for v in bin_mesh.vertices])
             self.bin_mesh_center = np.mean(vertices, axis=0)
-            self.get_logger().info(f'Bin mesh center: ({self.bin_mesh_center[0]:.3f}, '
+            self.get_logger().debug(f'Bin mesh center: ({self.bin_mesh_center[0]:.3f}, '
                                   f'{self.bin_mesh_center[1]:.3f}, {self.bin_mesh_center[2]:.3f})')
         else:
             self.get_logger().warn(f'Bin mesh not found: {bin_mesh_path}')
@@ -150,7 +150,7 @@ class TaskController(Node):
         self.picking_in_progress = False  # Stop cube updates during pick
         
         self.get_logger().info('Task Controller Ready')
-        self.get_logger().info('Command: PICK <cube_id>')
+        self.get_logger().info('Commands: PICK <cube_id>, HOME')
     
     def joint_state_callback(self, msg):
         """Track current linear joint position."""
@@ -250,9 +250,9 @@ class TaskController(Node):
             self.bin_pose.pose.orientation = raw_pose.pose.orientation
         
         if self.cube_pose and self.bin_pose:
-            self.get_logger().info(f'✓ Cube detected at ({self.cube_pose.pose.position.x:.3f}, '
+            self.get_logger().debug(f'✓ Cube detected at ({self.cube_pose.pose.position.x:.3f}, '
                                   f'{self.cube_pose.pose.position.y:.3f}, {self.cube_pose.pose.position.z:.3f})')
-            self.get_logger().info(f'✓ Bin detected at ({self.bin_pose.pose.position.x:.3f}, '
+            self.get_logger().debug(f'✓ Bin detected at ({self.bin_pose.pose.position.x:.3f}, '
                                   f'{self.bin_pose.pose.position.y:.3f}, {self.bin_pose.pose.position.z:.3f})')
             self.execute_grasp()
         else:
@@ -285,7 +285,7 @@ class TaskController(Node):
         grasp_pose.pose.position.z = self.cube_pose.pose.position.z
         grasp_pose.pose.orientation.w = 1.0
         
-        self.get_logger().info(f'→ Moving to grasp pose (attempt {self._grasp_attempts}/{self._max_grasp_attempts})')
+        self.get_logger().debug(f'→ Moving to grasp pose (attempt {self._grasp_attempts}/{self._max_grasp_attempts})')
         self.send_motion_goal(grasp_pose, tolerance=self.grasp_tolerance)
     
     # =========================================================================
@@ -295,7 +295,7 @@ class TaskController(Node):
     def execute_close_gripper(self):
         """Close gripper to grasp the cube."""
         self.state = PickState.CLOSING_GRIPPER
-        self.get_logger().info(f'→ Closing gripper')
+        self.get_logger().debug('→ Closing gripper')
         
         self._call_gripper_service(True)  # True = close
         
@@ -306,14 +306,14 @@ class TaskController(Node):
         """Called after gripper close delay."""
         self._gripper_timer.cancel()
         
-        self.get_logger().info('✓ Gripper closed')
+        self.get_logger().debug('✓ Gripper closed')
         
         # Attach cube to gripper via scene_manager
         cube_name = f'cube_{self.target_cube_id}'
         attach_cmd = String()
         attach_cmd.data = f'ATTACH {cube_name} grasp_frame'
         self.scene_cmd_pub.publish(attach_cmd)
-        self.get_logger().info(f'Attaching {cube_name} to gripper...')
+        self.get_logger().debug(f'Attaching {cube_name} to gripper...')
         
         # Wait for MoveIt to have the attached object
         self.wait_for_attached_object(cube_name, callback=self.execute_lift)
@@ -391,7 +391,7 @@ class TaskController(Node):
         lift_pose.pose.position.z = self.cube_pose.pose.position.z + self.lift_height
         lift_pose.pose.orientation.w = 1.0
         
-        self.get_logger().info(f'→ Lifting {self.lift_height}m')
+        self.get_logger().debug(f'→ Lifting {self.lift_height}m')
         self.send_motion_goal(lift_pose, tolerance=0.02)
     
     def execute_place(self):
@@ -410,14 +410,14 @@ class TaskController(Node):
         place_pose.pose.position.z = self.bin_pose.pose.position.z + self.bin_mesh_center[2] + self.place_height
         place_pose.pose.orientation.w = 1.0
         
-        self.get_logger().info(f'→ Moving to place pose at ({place_pose.pose.position.x:.3f}, '
+        self.get_logger().debug(f'→ Moving to place pose at ({place_pose.pose.position.x:.3f}, '
                               f'{place_pose.pose.position.y:.3f}, {place_pose.pose.position.z:.3f})')
         self.send_motion_goal(place_pose, tolerance=self.place_tolerance)
     
     def execute_open_gripper(self):
         """Open gripper to release the cube."""
         self.state = PickState.OPENING_GRIPPER
-        self.get_logger().info(f'→ Opening gripper')
+        self.get_logger().debug('→ Opening gripper')
         
         self._call_gripper_service(False)  # False = open
         
@@ -428,14 +428,14 @@ class TaskController(Node):
         """Called after gripper open delay."""
         self._gripper_open_timer.cancel()
         
-        self.get_logger().info('✓ Gripper opened')
+        self.get_logger().debug('✓ Gripper opened')
         
         # Remove cube from scene
         cube_name = f'cube_{self.target_cube_id}'
         remove_cmd = String()
         remove_cmd.data = f'REMOVE_PERMANENT {cube_name}'
         self.scene_cmd_pub.publish(remove_cmd)
-        self.get_logger().info(f'Published REMOVE_PERMANENT {cube_name}')
+        self.get_logger().debug(f'Published REMOVE_PERMANENT {cube_name}')
         
         self.execute_quick_ready()
     
@@ -459,7 +459,7 @@ class TaskController(Node):
             'elbow_joint': self.ready_joints['elbow_joint']
         }
         
-        self.get_logger().info(f'→ Moving to quick ready (linear={self.current_linear_position:.3f})')
+        self.get_logger().debug(f'→ Moving to quick ready (linear={self.current_linear_position:.3f})')
         self.send_joint_goal(quick_ready_joints, tolerance=0.05)
     
     def execute_full_home(self):
@@ -475,7 +475,7 @@ class TaskController(Node):
         self._is_full_home = True  # Flag to publish IDLE instead of SUCCESS
         self._pause_scene_updates()
         
-        self.get_logger().info(f'→ Returning to full ready position')
+        self.get_logger().debug('→ Returning to full ready position')
         self.send_joint_goal(self.ready_joints, tolerance=0.05)
         return True
 
@@ -574,14 +574,14 @@ class TaskController(Node):
         cmd = String()
         cmd.data = 'PAUSE_ALL'
         self.scene_cmd_pub.publish(cmd)
-        self.get_logger().info('Published PAUSE_ALL to scene_manager')
+        self.get_logger().debug('Published PAUSE_ALL to scene_manager')
     
     def _resume_scene_updates(self):
         """Resume scene_manager collision object updates after motion completes."""
         cmd = String()
         cmd.data = 'RESUME_ALL'
         self.scene_cmd_pub.publish(cmd)
-        self.get_logger().info('Published RESUME_ALL to scene_manager')
+        self.get_logger().debug('Published RESUME_ALL to scene_manager')
     
     def send_motion_goal(self, target_pose, tolerance=0.005, remove_objects=None, use_cylinder=False, cylinder_height=0.1):
         """Send motion goal to motion_controller action server.
