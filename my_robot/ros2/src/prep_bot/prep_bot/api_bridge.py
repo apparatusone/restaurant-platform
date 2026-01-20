@@ -51,7 +51,6 @@ class ApiBridge(Node):
         self.homed_client = self.create_client(Trigger, '/robot_homed_status')
         
         # Cached status (updated periodically)
-        self._cached_homed = False
         self._cached_calibrated = False
         
         # Poll status every 2 seconds
@@ -231,10 +230,27 @@ def get_robot_ready_status():
     """Get robot ready state (homed + calibrated)"""
     try:
         node = get_node()
+        
+        # Query homed status (returns cached state from hardware_interface)
+        homed = False
+        if node.homed_client.service_is_ready():
+            future = node.homed_client.call_async(Trigger.Request())
+            rclpy.spin_until_future_complete(node, future, timeout_sec=1.0)
+            if future.done():
+                homed = future.result().success
+        
+        # Query calibration status (returns cached state from camera_calibration)
+        calibrated = False
+        if node.calibration_client.service_is_ready():
+            future = node.calibration_client.call_async(Trigger.Request())
+            rclpy.spin_until_future_complete(node, future, timeout_sec=1.0)
+            if future.done():
+                calibrated = future.result().success
+        
         return jsonify({
-            "homed": node._cached_homed,
-            "calibrated": node._cached_calibrated,
-            "ready": node._cached_homed and node._cached_calibrated
+            "homed": homed,
+            "calibrated": calibrated,
+            "ready": homed and calibrated
         }), 200
     except Exception as e:
         return jsonify({
