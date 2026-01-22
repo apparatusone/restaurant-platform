@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict, PositiveInt, StringConstraints
 from typing import Annotated, Optional
-from datetime import datetime
 
 
 TableCode = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,8}$", strip_whitespace=True, min_length=1)]
@@ -34,8 +33,10 @@ class TableUpdate(BaseModel):
 
 class Table(TableBase):
     id: int
-    current_session_id: Optional[int] = None
-    created_at: datetime
-    updated_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
+
+
+class TableWithSession(Table):
+    """Table with current session info for floor view"""
+    current_session_id: Optional[int] = None

@@ -1,12 +1,12 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
 from shared.dependencies.database import Base
+
 
 class Table(Base):
     """
-    Represents physical tables in the restaurant
-    These are essentially persistent
+    Represents physical tables in the restaurant.
+    Simple and persistent - no timestamps needed.
     """
     __tablename__ = "tables"
 
@@ -16,13 +16,6 @@ class Table(Base):
     section = Column(String(32), nullable=True)
     is_outdoor = Column(Boolean, default=False, nullable=False)
     notes = Column(Text, nullable=True)
-    
-    current_session_id = Column(Integer, ForeignKey('table_sessions.id'), nullable=True)
-    
-    # timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
 
     # relationships
-    current_session = relationship("TableSession", foreign_keys=[current_session_id], back_populates="tables")
+    sessions = relationship("TableSession", back_populates="table")

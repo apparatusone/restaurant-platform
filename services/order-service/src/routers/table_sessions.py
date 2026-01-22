@@ -24,11 +24,6 @@ def get_active_sessions(db: Session = Depends(get_db)):
     return controller.read_active_sessions(db)
 
 
-@router.get("/reservations", response_model=list[schema.TableSession])
-def get_reservation_sessions(db: Session = Depends(get_db)):
-    return controller.read_reservation_sessions(db)
-
-
 @router.get("/{session_id}", response_model=schema.TableSession)
 def get_session(session_id: int, db: Session = Depends(get_db)):
     return controller.read_one(db, session_id=session_id)
@@ -42,16 +37,6 @@ def update_session(session_id: int, request: schema.TableSessionUpdate, db: Sess
 @router.post("/{session_id}/close", response_model=schema.TableSession)
 def close_session(session_id: int, db: Session = Depends(get_db)):
     return controller.close_session(db=db, session_id=session_id)
-
-
-@router.post("/{session_id}/tables/{table_id}")
-def add_table_to_session(session_id: int, table_id: int, db: Session = Depends(get_db)):
-    return controller.add_table_to_session(db=db, session_id=session_id, table_id=table_id)
-
-
-@router.delete("/{session_id}/tables/{table_id}")
-def remove_table_from_session(session_id: int, table_id: int, db: Session = Depends(get_db)):
-    return controller.remove_table_from_session(db=db, session_id=session_id, table_id=table_id)
 
 
 # check management endpoints for table sessions

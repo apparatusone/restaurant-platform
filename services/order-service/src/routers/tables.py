@@ -17,6 +17,12 @@ def get_all_tables(db: Session = Depends(get_db)):
     return controller.read_all(db)
 
 
+@router.get("/with-sessions", response_model=list[schema.TableWithSession])
+def get_tables_with_sessions(db: Session = Depends(get_db)):
+    """Get all tables with their current session ID (for floor view)"""
+    return controller.get_tables_with_session_info(db)
+
+
 @router.get("/available", response_model=list[schema.Table])
 def get_available_tables(db: Session = Depends(get_db)):
     return controller.get_available_tables(db)
