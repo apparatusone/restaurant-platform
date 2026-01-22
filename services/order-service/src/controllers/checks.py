@@ -1,11 +1,10 @@
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from fastapi import HTTPException, status
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from ..models.checks import Check, CheckStatus
-from shared.models.orders import Order
-from shared.models.order_items import OrderItem
+from shared.models.check_items import CheckItem
 from ..models.table_sessions import TableSession
 from ..schemas.checks import CheckCreate, CheckUpdate
 from ..utils.errors import (
@@ -48,7 +47,7 @@ def read_all(db: Session):
     """Get all checks with session info - handles both virtual and table checks"""
     return db.query(Check).options(
         joinedload(Check.session),
-        joinedload(Check.order)
+        joinedload(Check.check_items)
     ).all()
 
 
@@ -56,7 +55,7 @@ def read_one(db: Session, check_id: int):
     """Get single check with full details - works for both virtual and table checks"""
     check = db.query(Check).options(
         joinedload(Check.session),
-        joinedload(Check.order).joinedload(Order.order_items),
+        joinedload(Check.check_items),
         joinedload(Check.payments)
     ).filter(Check.id == check_id).first()
     if not check:
@@ -142,14 +141,10 @@ def delete(db: Session, check_id: int):
     if check.status in [CheckStatus.SENT, CheckStatus.READY, CheckStatus.PAID, CheckStatus.CLOSED]:
         raise_validation_error("Cannot delete submitted or paid check")
 
-    # Only allow delete if no order items
-    from shared.models.order_items import OrderItem
-    from shared.models.orders import Order
-    
-    # Find all orders for this check and count their items
-    item_count = db.query(OrderItem).join(Order).filter(Order.check_id == check_id).count()
+    # Only allow delete if no check items
+    item_count = db.query(CheckItem).filter(CheckItem.check_id == check_id).count()
     if item_count > 0:
-        raise_validation_error("Cannot delete check with order items")
+        raise_validation_error("Cannot delete check with check items")
 
     db.delete(check)
     db.commit()
@@ -160,7 +155,7 @@ def get_open_checks(db: Session, include_virtual: bool = True, include_table: bo
     """Get all open checks - unified for virtual and table checks"""
     query = db.query(Check).filter(Check.status == CheckStatus.OPEN).options(
         joinedload(Check.session),
-        joinedload(Check.order)
+        joinedload(Check.check_items)
     )
     
     if include_virtual and not include_table:
@@ -177,7 +172,7 @@ def get_pending_checks(db: Session, include_virtual: bool = True, include_table:
         Check.status.in_([CheckStatus.SENT, CheckStatus.READY])
     ).options(
         joinedload(Check.session),
-        joinedload(Check.order)
+        joinedload(Check.check_items)
     )
     
     if include_virtual and not include_table:
@@ -191,7 +186,7 @@ def get_pending_checks(db: Session, include_virtual: bool = True, include_table:
 def get_virtual_checks(db: Session, status: CheckStatus = None):
     """Get virtual checks with optional status filter"""
     query = db.query(Check).filter(Check.is_virtual == True).options(
-        joinedload(Check.order).joinedload(Order.order_items)
+        joinedload(Check.check_items)
     )
     
     if status:
@@ -204,7 +199,7 @@ def get_table_checks(db: Session, status: CheckStatus = None):
     """Get a table's checks with optional status filter"""
     query = db.query(Check).filter(Check.is_virtual == False).options(
         joinedload(Check.session),
-        joinedload(Check.order).joinedload(Order.order_items)
+        joinedload(Check.check_items)
     )
     
     if status:
@@ -214,10 +209,10 @@ def get_table_checks(db: Session, status: CheckStatus = None):
 
 
 def calculate_check_total(db: Session, check_id: int):
-    """Calculate check total from associated orders - works for both virtual and table checks"""
-    # get sum of all order details for orders in this check
-    subtotal = db.query(func.sum(OrderItem.line_total)).join(Order).filter(
-        Order.check_id == check_id
+    """Calculate check total from check items directly - works for both virtual and table checks"""
+    # get sum of all check items for this check
+    subtotal = db.query(func.sum(CheckItem.total_price)).filter(
+        CheckItem.check_id == check_id
     ).scalar() or Decimal('0.00')
     
     # for now, use simple tax calculation (8.5%)
@@ -250,10 +245,10 @@ def update_check_totals(db: Session, check_id: int):
     return check
 
 
-def get_checks_with_orders(db: Session, include_virtual: bool = True, include_table: bool = True):
-    """Get checks with their associated order"""
+def get_checks_with_items(db: Session, include_virtual: bool = True, include_table: bool = True):
+    """Get checks with their associated check items"""
     query = db.query(Check).options(
-        joinedload(Check.order).joinedload(Order.order_items),
+        joinedload(Check.check_items),
         joinedload(Check.session)
     )
     
@@ -269,7 +264,7 @@ def get_checks_with_orders(db: Session, include_virtual: bool = True, include_ta
 def get_check_summary(db: Session, check_id: int):
     """Get comprehensive check summary - works for both virtual and table checks"""
     check = db.query(Check).options(
-        joinedload(Check.order).joinedload(Order.order_items).joinedload(OrderItem.menu_item),
+        joinedload(Check.check_items).joinedload(CheckItem.menu_item),
         joinedload(Check.session),
         joinedload(Check.payments)
     ).filter(Check.id == check_id).first()
@@ -277,7 +272,7 @@ def get_check_summary(db: Session, check_id: int):
     if not check:
         raise_not_found("Check", check_id)
     
-    # calculate current totals from orders
+    # calculate current totals from check items
     calculated_totals = calculate_check_total(db, check_id)
     
     # calculate payments made
@@ -288,7 +283,7 @@ def get_check_summary(db: Session, check_id: int):
         'calculated_totals': calculated_totals,
         'total_payments': total_payments,
         'balance_due': (calculated_totals['total_amount'] + (check.tip_amount or Decimal('0.00'))) - total_payments,
-        'order_count': 1 if check.order else 0,
+        'item_count': len(check.check_items) if check.check_items else 0,
         'is_virtual': check.is_virtual
     }
 
@@ -332,16 +327,15 @@ def update_check_status(db: Session, check_id: int, new_status: CheckStatus):
     return check
 
 
-def get_checks_by_order_type(db: Session, order_type: str = None):
-    """Get checks filtered by associated order types - unified querying"""
+def get_checks_by_type(db: Session, is_virtual: bool = None):
+    """Get checks filtered by type (virtual or table)"""
     query = db.query(Check).options(
-        joinedload(Check.order),
+        joinedload(Check.check_items),
         joinedload(Check.session)
     )
     
-    if order_type:
-        from shared.models.orders import OrderType
-        query = query.join(Order).filter(Order.order_type == OrderType(order_type))
+    if is_virtual is not None:
+        query = query.filter(Check.is_virtual == is_virtual)
     
     return query.all()
 
@@ -361,13 +355,13 @@ def create_payment_for_check(db: Session, check_id: int, request):
         if check.status != CheckStatus.READY:
             raise_validation_error(f"Cannot process payment for check with status '{check.status.value}'. Check must be ready.")
         
-        # Verify all order items are actually ready for dine-in
-        all_items = db.query(OrderItem).join(Order).filter(
-            Order.check_id == check_id
+        # Verify all check items are actually ready for dine-in
+        all_items = db.query(CheckItem).filter(
+            CheckItem.check_id == check_id
         ).all()
         
         if all_items:
-            not_ready_items = [item for item in all_items if item.status != OrderItemStatus.READY]
+            not_ready_items = [item for item in all_items if item.status != CheckItemStatus.READY]
             if not_ready_items:
                 raise_validation_error(
                     f"Cannot process payment. {len(not_ready_items)} item(s) are not ready yet. "

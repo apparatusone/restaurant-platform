@@ -1,8 +1,7 @@
 from . import (
-    orders,
-    order_items,
-    resources,
-    menu_item_ingredients,
+    check_items,
+    ingredients,
+    recipes,
     menu_items,
     menu,
     payment_method,
@@ -23,10 +22,9 @@ from . import (
 def load_routes(app):
     app.include_router(analytics.router)
     app.include_router(administrator_actions.router)
-    app.include_router(orders.router)
-    app.include_router(order_items.router)
-    app.include_router(resources.router)
-    app.include_router(menu_item_ingredients.router)
+    app.include_router(check_items.router)
+    app.include_router(ingredients.router)
+    app.include_router(recipes.router)
     app.include_router(menu_items.router)
     app.include_router(menu.router)
     app.include_router(payment_method.router)

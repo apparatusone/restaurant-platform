@@ -8,8 +8,7 @@ from ..config.restaurant import (
     TAX_RATE
 )
 from shared.dependencies.database import get_db
-from ..controllers.orders import read_one as get_order_by_id
-from ..controllers import order_items as order_item_controller
+from ..controllers import check_items as check_item_controller
 
 SERVER_IP = "10.0.1.43"
 PORT = 9100
@@ -28,23 +27,23 @@ CUT_FULL = GS+b"V\x00"
 COLS = 32  # 58mm = ~32 columns in Font A
 HR   = b"-"*COLS + b"\n"
 
-def get_order_items_for_receipt(order_id: int) -> list[tuple[str, float]]:
+def get_check_items_for_receipt(check_id: int) -> list[tuple[str, float]]:
     """
-    Get order items formatted for receipt printing.
+    Get check items formatted for receipt printing.
     Returns list of tuples: (formatted_item_name, price)
     """
-    from shared.models.order_items import OrderItem
+    from shared.models.check_items import CheckItem
     from shared.models.menu_items import MenuItem
     
     db = next(get_db())
     
-    # Query order items with menu item information
-    order_items = db.query(OrderItem).join(MenuItem).filter(
-        OrderItem.order_id == order_id
+    # Query check items with menu item information
+    check_items = db.query(CheckItem).join(MenuItem).filter(
+        CheckItem.check_id == check_id
     ).all()
     
     items = []
-    for item in order_items:
+    for item in check_items:
         # format item name: "QUANTITY x ITEM_NAME"
         item_name = item.menu_item.name.upper()
         
@@ -66,7 +65,7 @@ def get_order_items_for_receipt(order_id: int) -> list[tuple[str, float]]:
     
     return items
         
-def print_receipt(order_id: int, subtotal: float = None, tax: float = None, total: float = None):
+def print_receipt(check_id: int, subtotal: float = None, tax: float = None, total: float = None):
     def format_line(label: str, price: Optional[float] = None) -> bytes:
         if price is None:
             formatted_label = label[:COLS].ljust(COLS)
@@ -95,27 +94,26 @@ def print_receipt(order_id: int, subtotal: float = None, tax: float = None, tota
         with socket.create_connection((SERVER_IP, PORT), timeout=5) as s:
             s.sendall(data)
 
-    # get items from the order
-    items = get_order_items_for_receipt(order_id)
+    # get items from the check
+    items = get_check_items_for_receipt(check_id)
     
-    # get order info for promo code
-    from shared.models.orders import Order
+    # get check info for promo code
+    from ..models.checks import Check
     from ..models.promotions import Promotion
     db = next(get_db())
-    order = db.query(Order).filter(Order.id == order_id).first()
-    order_type = order.order_type.value.upper() if order else ""
-    time = order.order_date.strftime("%H:%M")
+    check = db.query(Check).filter(Check.id == check_id).first()
+    time = check.opened_at.strftime("%H:%M") if check else ""
 
-    # reciept line with order id and time:
-    order_left = f"ORDER: {order_id}"
-    spacing = " " * (COLS - len(order_left) - len(time))
-    order_line = f"{order_left}{spacing}{time}"
+    # receipt line with check id and time:
+    check_left = f"CHECK: {check_id}"
+    spacing = " " * (COLS - len(check_left) - len(time))
+    check_line = f"{check_left}{spacing}{time}"
     
     # get promo info if exists
     promo_code = None
     promo_discount = 0
-    if order and order.promo_id:
-        promotion = db.query(Promotion).filter(Promotion.id == order.promo_id).first()
+    if check and check.promo_id:
+        promotion = db.query(Promotion).filter(Promotion.id == check.promo_id).first()
         if promotion:
             promo_code = promotion.code
             # calculate discount amount
@@ -137,7 +135,7 @@ def print_receipt(order_id: int, subtotal: float = None, tax: float = None, tota
     buf += BOLD_OFF + SIZE_N
     buf += RESTAURANT_ADDRESS.encode("ascii", "ignore") + b"\n"
     buf += HR
-    buf += ALIGN_L + BOLD_ON + order_line.encode("ascii", "ignore") + b"\n" + BOLD_OFF
+    buf += ALIGN_L + BOLD_ON + check_line.encode("ascii", "ignore") + b"\n" + BOLD_OFF
     buf += HR
     for n,p in items: buf += format_line(n, p)
     buf += HR

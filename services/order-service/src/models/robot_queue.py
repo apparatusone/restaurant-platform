@@ -17,7 +17,7 @@ class RobotQueue(Base):
     __tablename__ = "robot_queue"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    order_id = Column(Integer, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, unique=True)
+    check_id = Column(Integer, ForeignKey("checks.id", ondelete="CASCADE"), nullable=False, unique=True)
     status = Column(
         Enum(RobotQueueStatus, values_callable=lambda obj: [e.value for e in obj]),
         default=RobotQueueStatus.PENDING,

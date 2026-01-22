@@ -3,7 +3,6 @@ from fastapi import HTTPException, status
 from shared.repositories import BaseRepository
 from ..models.payment_method import Payment
 from ..models.checks import Check
-from shared.models.orders import Order
 from ..schemas.payment_method import PaymentCreate, PaymentUpdate, PaymentType, PaymentStatus
 from decimal import Decimal
 
@@ -20,22 +19,6 @@ def create(db: Session, request: PaymentCreate):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Check with id {request.check_id} not found"
         )
-    
-    # Validate order if provided
-    if request.order_id:
-        order = db.query(Order).filter(Order.id == request.order_id).first()
-        if not order:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Order with id {request.order_id} not found"
-            )
-        
-        # ensure order belongs to the check
-        if order.check_id != request.check_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Order {request.order_id} does not belong to check {request.check_id}"
-            )
     
     # validate payment amount
     if request.amount <= 0:

@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from shared.repositories import BaseRepository
 from shared.models.menu_items import MenuItem
-from shared.schemas.menu_items import MenuItemsCreate, MenuItemsUpdate
+from ..schemas.menu_items import MenuItemsCreate, MenuItemsUpdate
 
 # Initialize repository
 menu_item_repo = BaseRepository[MenuItem, MenuItemsCreate, MenuItemsUpdate](MenuItem)

@@ -3,25 +3,23 @@ from sqlalchemy import func
 from fastapi import HTTPException, status, Response
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, date
-from ..models.menu_item_ingredients import MenuItemIngredient
-from ..models.resources import Resource
+from ..models.recipes import Recipe
+from ..models.ingredients import Ingredient
 from ..models import promotions as promotion_model
 from ..models.payment_method import Payment, PaymentStatus
-from shared.models.orders import Order, OrderStatus
 from ..models.reviews import Reviews
 from shared.models.menu_items import MenuItem
-from .analytics import ValueSort
 from shared.utils.error_handlers import handle_database_error
     
 
 # this function gets and returns the ingredients needed for a particular menu item
 def get_required_ingredients(db, menu_item_id, quantity):
-    ingredients = db.query(MenuItemIngredient).join(Resource).filter(
-        MenuItemIngredient.menu_item_id == menu_item_id
+    ingredients = db.query(Recipe).join(Ingredient).filter(
+        Recipe.menu_item_id == menu_item_id
     ).all()
 
     return {
-        ingredient.resource.item: ingredient.amount * quantity
+        ingredient.ingredient.name: ingredient.amount * quantity
         for ingredient in ingredients
     }
 
@@ -66,27 +64,28 @@ def get_daily_revenue(db: Session, target_date: date):
     Get total revenue and completed orders for a specific date (YYYY-MM-DD format)
     """
     from datetime import datetime, timedelta
+    from ..models.checks import Check
     
     start_of_day = datetime.combine(target_date, datetime.min.time())
     end_of_day = datetime.combine(target_date, datetime.max.time())
     
-    completed_orders = db.query(Order).join(
-        Payment, Order.id == Payment.order_id
+    completed_checks = db.query(Check).join(
+        Payment, Check.id == Payment.check_id
     ).filter(
-        Order.order_date >= start_of_day
+        Check.opened_at >= start_of_day
     ).filter(
-        Order.order_date <= end_of_day
+        Check.opened_at <= end_of_day
     ).filter(
         Payment.status == PaymentStatus.COMPLETED
     ).all()
     
     # Calculate total revenue using stored final_total
-    total_revenue = sum(float(order.final_total) for order in completed_orders if order.final_total)
-    order_count = len(completed_orders)
+    total_revenue = sum(float(check.final_total) for check in completed_checks if check.final_total)
+    check_count = len(completed_checks)
     
     return {
         "date": target_date.isoformat(),
-        "completed_orders": order_count,
+        "completed_orders": check_count,
         "total_revenue": round(total_revenue, 2)
     }
 
@@ -98,55 +97,14 @@ def review_feedback(db: Session, rating: int):
     return db.query(Reviews).join(MenuItem).filter(Reviews.rating == rating).all()
 
 
-def get_orders_by_status(db: Session, status: OrderStatus):
-    """
-    Get orders filtered by status
-    """
-    return db.query(Order).filter(Order.status == status).all()
-
-
-def get_orders_by_date_range(db: Session, start_date: date, end_date: date):
-    """
-    Get orders within a date range
-    """
-    # Validate that start_date is not after end_date
-    if start_date > end_date:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Start date cannot be after end date"
-        )
-    
-    return db.query(Order).filter(
-        func.date(Order.order_date) >= start_date
-    ).filter(
-        func.date(Order.order_date) <= end_date
-    ).all()
-
-
-def update_order_status(db: Session, order_id: int, status: OrderStatus):
-    """
-    Update the status of an order with validation
-    """
-    from ..controllers import orders as order_controller
-    
-    # status validation
-    try:
-        updated_order = order_controller.update_status(db=db, order_id=order_id, new_status=status)
-        return updated_order
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update order status: {str(e)}")
-
-
 def add_menu_item(db: Session, request):
     """
-    Create a new menu item with ingredients and add empty resources
+    Create a new menu item with ingredients and add empty ingredients
     """
     from ..controllers import menu_items as menu_item_controller
     from ..schemas.menu_items import MenuItemsCreate
-    from ..models.menu_item_ingredients import MenuItemIngredient
-    from ..models.resources import Resource
+    from ..models.recipes import Recipe
+    from ..models.ingredients import Ingredient
     
     try:
         # create the menu item
@@ -160,38 +118,38 @@ def add_menu_item(db: Session, request):
         
         new_menu_item = menu_item_controller.create(db=db, request=menu_item_data)
         
-        # process each resource needed and track new ones
-        new_resources_added = []
+        # process each ingredient needed and track new ones
+        new_ingredients_added = []
         
-        for resource_req in request.resources:
-            # check if resource exists by name, create if it doesn't
-            existing_resource = db.query(Resource).filter(Resource.item == resource_req.resource_name).first()
-            if not existing_resource:
-                # create new resource with amount = 0
-                new_resource = Resource(
-                    item=resource_req.resource_name,
-                    amount=0
+        for ingredient_req in request.resources:
+            # check if ingredient exists by name, create if it doesn't
+            existing_ingredient = db.query(Ingredient).filter(Ingredient.name == ingredient_req.resource_name).first()
+            if not existing_ingredient:
+                # create new ingredient with quantity_on_hand = 0
+                new_ingredient = Ingredient(
+                    name=ingredient_req.resource_name,
+                    quantity_on_hand=0
                 )
-                db.add(new_resource)
+                db.add(new_ingredient)
                 db.flush()  # Get the ID
-                resource_id = new_resource.id
-                new_resources_added.append(resource_req.resource_name)
+                ingredient_id = new_ingredient.id
+                new_ingredients_added.append(ingredient_req.resource_name)
             else:
-                resource_id = existing_resource.id
+                ingredient_id = existing_ingredient.id
             
-            # create menu item ingredient relationship
-            menu_item_ingredient = MenuItemIngredient(
+            # create recipe relationship
+            recipe = Recipe(
                 menu_item_id=new_menu_item.id,
-                resource_id=resource_id,
-                amount=resource_req.quantity
+                ingredient_id=ingredient_id,
+                amount=ingredient_req.quantity
             )
-            db.add(menu_item_ingredient)
+            db.add(recipe)
         
         db.commit()
         
         return {
             "menu_item": new_menu_item.name,
-            "resources_added": new_resources_added # only includes new resources
+            "resources_added": new_ingredients_added # only includes new ingredients
         }
         
     except Exception as e:
@@ -201,16 +159,16 @@ def add_menu_item(db: Session, request):
 
 def update_stock(db: Session, resource_name: str, amount_change: int):
     """
-    Add or remove stock for a resource
+    Add or remove stock for an ingredient
     """
-    from ..models.resources import Resource
+    from ..models.ingredients import Ingredient
     
     try:
-        # find the resource by name
-        resource = db.query(Resource).filter(Resource.item == resource_name).first()
+        # find the ingredient by name
+        ingredient = db.query(Ingredient).filter(Ingredient.name == resource_name).first()
         
-        if not resource:
-            raise HTTPException(status_code=404, detail=f"Resource '{resource_name}' not found")
+        if not ingredient:
+            raise HTTPException(status_code=404, detail=f"Ingredient '{resource_name}' not found")
         
         # handle zero change
         if amount_change == 0:
@@ -219,22 +177,22 @@ def update_stock(db: Session, resource_name: str, amount_change: int):
             }
         
         # calc the new stock amount
-        new_amount = resource.amount + amount_change
+        new_amount = ingredient.quantity_on_hand + amount_change
         
         # prevent negative stock
         if new_amount < 0:
             raise HTTPException(
                 status_code=400, 
-                detail=f"Cannot reduce stock below 0. Current: {resource.amount}, Requested change: {amount_change}"
+                detail=f"Cannot reduce stock below 0. Current: {ingredient.quantity_on_hand}, Requested change: {amount_change}"
             )
         
         # update the stock quantity
-        resource.amount = new_amount
+        ingredient.quantity_on_hand = new_amount
         db.commit()
         
         return {
-            "previous_amount": resource.amount - amount_change,
-            "new_amount": resource.amount,
+            "previous_amount": ingredient.quantity_on_hand - amount_change,
+            "new_amount": ingredient.quantity_on_hand,
             "message": f"Stock updated for {resource_name}"
         }
         

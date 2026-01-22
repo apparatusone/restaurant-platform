@@ -11,4 +11,3 @@ class Customer(Base):
     customer_phone = Column(BigInteger, index=True, nullable=True)  # Changed to BigInteger to handle 10-digit phone numbers
     customer_address = Column(String(100))
 
-    orders = relationship("Order", back_populates="customer")
