@@ -19,7 +19,7 @@ class ApiBridge(Node):
         # Publisher for motor commands (to hardware_interface)
         self.motor_cmd_publisher = self.create_publisher(String, 'motor_command', 10)
         
-        # Publisher for pick commands (to pick_controller)
+        # Publisher for pick commands (to task_controller)
         self.pick_cmd_publisher = self.create_publisher(String, '/pick_command', 10)
         
         # Subscribe to robot status updates
@@ -38,7 +38,7 @@ class ApiBridge(Node):
             10
         )
         
-        # Subscribe to pick status (from pick_controller)
+        # Subscribe to pick status (from task_controller)
         self.pick_status_subscription = self.create_subscription(
             String,
             '/pick_status',
@@ -51,7 +51,6 @@ class ApiBridge(Node):
         self.homed_client = self.create_client(Trigger, '/robot_homed_status')
         
         # Cached status (updated periodically)
-        self._cached_homed = False
         self._cached_calibrated = False
         
         # Poll status every 2 seconds
@@ -101,7 +100,7 @@ class ApiBridge(Node):
         self.get_logger().debug(f'Motor feedback received: {msg.data}')
 
     def pick_status_callback(self, msg):
-        """Receive status from pick_controller"""
+        """Receive status from task_controller"""
         self.last_pick_status = msg.data
         self.get_logger().info(f'Pick status received: {msg.data}')
         
@@ -130,23 +129,10 @@ class ApiBridge(Node):
     
     def update_cached_status(self):
         """Periodically update cached status from services (runs in ROS thread)"""
-        # Query homed status
-        if self.homed_client.service_is_ready():
-            future = self.homed_client.call_async(Trigger.Request())
-            future.add_done_callback(self._homed_callback)
-        
         # Query calibration status
         if self.calibration_client.service_is_ready():
             future = self.calibration_client.call_async(Trigger.Request())
             future.add_done_callback(self._calibration_callback)
-    
-    def _homed_callback(self, future):
-        """Handle homed status response"""
-        try:
-            response = future.result()
-            self._cached_homed = response.success
-        except Exception as e:
-            self.get_logger().debug(f'Failed to get homed status: {e}')
     
     def _calibration_callback(self, future):
         """Handle calibration status response"""
@@ -231,10 +217,27 @@ def get_robot_ready_status():
     """Get robot ready state (homed + calibrated)"""
     try:
         node = get_node()
+        
+        # Query homed status (returns cached state from hardware_interface)
+        homed = False
+        if node.homed_client.service_is_ready():
+            future = node.homed_client.call_async(Trigger.Request())
+            rclpy.spin_until_future_complete(node, future, timeout_sec=1.0)
+            if future.done():
+                homed = future.result().success
+        
+        # Query calibration status (returns cached state from camera_calibration)
+        calibrated = False
+        if node.calibration_client.service_is_ready():
+            future = node.calibration_client.call_async(Trigger.Request())
+            rclpy.spin_until_future_complete(node, future, timeout_sec=1.0)
+            if future.done():
+                calibrated = future.result().success
+        
         return jsonify({
-            "homed": node._cached_homed,
-            "calibrated": node._cached_calibrated,
-            "ready": node._cached_homed and node._cached_calibrated
+            "homed": homed,
+            "calibrated": calibrated,
+            "ready": homed and calibrated
         }), 200
     except Exception as e:
         return jsonify({
@@ -380,12 +383,12 @@ def pick_cube():
         # Clear previous result
         node.pick_result = None
         
-        # Send pick command to pick_controller
+        # Send pick command to task_controller
         msg = String()
         msg.data = f'PICK {cube_tag}'
         node.pick_cmd_publisher.publish(msg)
         
-        # Wait for pick_controller to report success/failure
+        # Wait for task_controller to report success/failure
         # Main thread's spin() handles callbacks and sets pick_result
         timeout = 120.0  # 2 minutes for full pick sequence
         start_time = time.time()
@@ -456,7 +459,7 @@ def robot_home():
         # Clear previous result
         node.pick_result = None
         
-        # Send HOME command to pick_controller
+        # Send HOME command to task_controller
         msg = String()
         msg.data = 'HOME'
         node.pick_cmd_publisher.publish(msg)

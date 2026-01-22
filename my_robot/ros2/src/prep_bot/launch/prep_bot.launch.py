@@ -97,11 +97,29 @@ def generate_launch_description():
             output='screen'
         ),
         
+        # Task controller (high-level task logic)
+        Node(
+            package='prep_bot',
+            executable='task_controller',
+            name='task_controller',
+            parameters=[robot_control_config],
+            output='screen'
+        ),
+        
         # Hardware interface (STM32 communication, publishes /joint_states)
         Node(
             package='prep_bot',
             executable='hardware_interface',
             name='hardware_interface',
+            parameters=[robot_control_config],
+            output='screen'
+        ),
+        
+        # Trajectory executor (executes MoveIt trajectories via STM32)
+        Node(
+            package='prep_bot',
+            executable='trajectory_executor',
+            name='trajectory_executor',
             parameters=[robot_control_config],
             output='screen'
         ),
