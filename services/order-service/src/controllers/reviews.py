@@ -1,65 +1,27 @@
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status, Response
-from ..models import reviews as model
-from sqlalchemy.exc import SQLAlchemyError
-from shared.utils.error_handlers import handle_database_error
+from shared.repositories import BaseRepository
+from ..models.reviews import Reviews
+from ..schemas.reviews import ReviewsCreate, ReviewsUpdate
+
+# Initialize repository
+review_repo = BaseRepository[Reviews, ReviewsCreate, ReviewsUpdate](Reviews)
 
 
-def create(db: Session, request):
-    new_item = model.Reviews(
-        menu_item_id=request.menu_item_id,
-        customer_name=request.customer_name,
-        rating=request.rating,
-        review_text=request.review_text
-    )
+def create(db: Session, request: ReviewsCreate):
+    return review_repo.create(db, request)
 
-    try:
-        db.add(new_item)
-        db.commit()
-        db.refresh(new_item)
-    except SQLAlchemyError as e:
-        raise handle_database_error(e, operation="review creation", log_context={"menu_item_id": request.menu_item_id})
-
-    return new_item
 
 def read_all(db: Session):
-    try:
-        result = db.query(model.Reviews).all()
-    except SQLAlchemyError as e:
-        raise handle_database_error(e, operation="reviews read_all")
-    return result
+    return review_repo.get_all(db)
 
 
-def read_one(db: Session, item_id):
-    try:
-        item = db.query(model.Reviews).filter(model.Reviews.id == item_id).first()
-        if not item:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Id not found!")
-    except SQLAlchemyError as e:
-        raise handle_database_error(e, operation="review read_one", log_context={"item_id": item_id})
-    return item
+def read_one(db: Session, item_id: int):
+    return review_repo.get_or_404(db, item_id)
 
 
-def update(db: Session, item_id, request):
-    try:
-        item = db.query(model.Reviews).filter(model.Reviews.id == item_id)
-        if not item.first():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Id not found!")
-        update_data = request.dict(exclude_unset=True)
-        item.update(update_data, synchronize_session=False)
-        db.commit()
-    except SQLAlchemyError as e:
-        raise handle_database_error(e, operation="review update", log_context={"item_id": item_id})
-    return item.first()
+def update(db: Session, item_id: int, request: ReviewsUpdate):
+    return review_repo.update(db, item_id, request)
 
 
-def delete(db: Session, item_id):
-    try:
-        item = db.query(model.Reviews).filter(model.Reviews.id == item_id)
-        if not item.first():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Id not found!")
-        item.delete(synchronize_session=False)
-        db.commit()
-    except SQLAlchemyError as e:
-        raise handle_database_error(e, operation="review delete", log_context={"item_id": item_id})
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+def delete(db: Session, item_id: int):
+    review_repo.delete(db, item_id)

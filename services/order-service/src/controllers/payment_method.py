@@ -1,15 +1,19 @@
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status, Response, Depends
-from ..models import payment_method as model
+from fastapi import HTTPException, status
+from shared.repositories import BaseRepository
+from ..models.payment_method import Payment
 from ..models.checks import Check
 from shared.models.orders import Order
-from sqlalchemy.exc import SQLAlchemyError
-from ..schemas.payment_method import PaymentType, PaymentStatus
+from ..schemas.payment_method import PaymentCreate, PaymentUpdate, PaymentType, PaymentStatus
 from decimal import Decimal
-from shared.utils.error_handlers import handle_database_error
+
+# Initialize repository
+payment_repo = BaseRepository[Payment, PaymentCreate, PaymentUpdate](Payment)
 
 
-def create(db: Session, request):
+def create(db: Session, request: PaymentCreate):
+    """Create payment"""
+    # Validate check exists
     check = db.query(Check).filter(Check.id == request.check_id).first()
     if not check:
         raise HTTPException(
@@ -17,7 +21,7 @@ def create(db: Session, request):
             detail=f"Check with id {request.check_id} not found"
         )
     
-    # validate order_id if provided
+    # Validate order if provided
     if request.order_id:
         order = db.query(Order).filter(Order.id == request.order_id).first()
         if not order:
@@ -41,10 +45,11 @@ def create(db: Session, request):
         )
     
     # check if total payments would exceed check total
-    existing_payments = db.query(model.Payment).filter(
-        model.Payment.check_id == request.check_id,
-        model.Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-    ).all()
+    existing_payments = payment_repo.filter_by(
+        db,
+        check_id=request.check_id
+    )
+    existing_payments = [p for p in existing_payments if p.status in [PaymentStatus.COMPLETED, PaymentStatus.PENDING]]
     
     total_existing = sum(payment.amount for payment in existing_payments)
     if total_existing + request.amount > check.total_amount:
@@ -52,118 +57,76 @@ def create(db: Session, request):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Payment amount would exceed check total. Check total: {check.total_amount}, existing payments: {total_existing}, attempted payment: {request.amount}"
         )
-
+    
+    # Set payment status based on type
     payment_status = PaymentStatus.COMPLETED if request.payment_type == PaymentType.CASH else request.status
+    
+    # Create modified request with status
+    payment_data = request.model_dump()
+    payment_data['status'] = payment_status
+    
+    new_payment = Payment(**payment_data)
+    db.add(new_payment)
+    db.commit()
+    db.refresh(new_payment)
+    return new_payment
 
-    new_item = model.Payment(
-        check_id=request.check_id,
-        order_id=request.order_id,
-        amount=request.amount,
-        payment_type=request.payment_type,
-        status=payment_status,
-        card_number=request.card_number
-    )
-
-    try:
-        db.add(new_item)
-        db.commit()
-        db.refresh(new_item)
-    except SQLAlchemyError as e:
-        raise handle_database_error(e, operation="payment creation", log_context={"check_id": request.check_id})
-
-    return new_item
 
 def read_all(db: Session):
-    try:
-        result = db.query(model.Payment).all()
-    except SQLAlchemyError as e:
-        raise handle_database_error(e, operation="payments read_all")
-    return result
+    return payment_repo.get_all(db)
 
 
-def read_one(db: Session, item_id):
-    try:
-        item = db.query(model.Payment).filter(model.Payment.id == item_id).first()
-        if not item:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Id not found!")
-    except SQLAlchemyError as e:
-        raise handle_database_error(e, operation="payment read_one", log_context={"item_id": item_id})
-    return item
+def read_one(db: Session, item_id: int):
+    return payment_repo.get_or_404(db, item_id)
 
 
-def update(db: Session, item_id, request):
-    try:
-        item = db.query(model.Payment).filter(model.Payment.id == item_id)
-        if not item.first():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Id not found!")
-        update_data = request.dict(exclude_unset=True)
-        item.update(update_data, synchronize_session=False)
-        db.commit()
-    except SQLAlchemyError as e:
-        raise handle_database_error(e, operation="payment update", log_context={"item_id": item_id})
-    return item.first()
+def update(db: Session, item_id: int, request: PaymentUpdate):
+    return payment_repo.update(db, item_id, request)
 
 
-def delete(db: Session, item_id):
-    try:
-        item = db.query(model.Payment).filter(model.Payment.id == item_id)
-        if not item.first():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Id not found!")
-        item.delete(synchronize_session=False)
-        db.commit()
-    except SQLAlchemyError as e:
-        raise handle_database_error(e, operation="payment delete", log_context={"item_id": item_id})
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+def delete(db: Session, item_id: int):
+    payment_repo.delete(db, item_id)
 
 
 def read_by_check(db: Session, check_id: int):
     """Get all payments for a specific check"""
-    try:
-        # verify check exists
-        check = db.query(Check).filter(Check.id == check_id).first()
-        if not check:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Check with id {check_id} not found"
-            )
-        
-        payments = db.query(model.Payment).filter(model.Payment.check_id == check_id).all()
-        return payments
-    except SQLAlchemyError as e:
-        raise handle_database_error(e, operation="read payments by check", log_context={"check_id": check_id})
+    # verify check exists
+    check = db.query(Check).filter(Check.id == check_id).first()
+    if not check:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Check with id {check_id} not found"
+        )
+    
+    return payment_repo.filter_by(db, check_id=check_id)
 
 
 def get_check_payment_summary(db: Session, check_id: int):
     """Get payment summary for a check including total paid and remaining balance"""
-    try:
-        # verify check exists
-        check = db.query(Check).filter(Check.id == check_id).first()
-        if not check:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Check with id {check_id} not found"
-            )
-        
-        payments = db.query(model.Payment).filter(
-            model.Payment.check_id == check_id,
-            model.Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-        ).all()
-        
-        total_paid = sum(payment.amount for payment in payments if payment.status == PaymentStatus.COMPLETED)
-        total_pending = sum(payment.amount for payment in payments if payment.status == PaymentStatus.PENDING)
-        remaining_balance = check.total_amount - total_paid - total_pending
-        
-        return {
-            "check_id": check_id,
-            "check_total": check.total_amount,
-            "total_paid": total_paid,
-            "total_pending": total_pending,
-            "remaining_balance": remaining_balance,
-            "is_fully_paid": remaining_balance <= 0,
-            "payments": payments
-        }
-    except SQLAlchemyError as e:
-        raise handle_database_error(e, operation="get check payment summary", log_context={"check_id": check_id})
+    # verify check exists
+    check = db.query(Check).filter(Check.id == check_id).first()
+    if not check:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Check with id {check_id} not found"
+        )
+    
+    payments = payment_repo.filter_by(db, check_id=check_id)
+    payments = [p for p in payments if p.status in [PaymentStatus.COMPLETED, PaymentStatus.PENDING]]
+    
+    total_paid = sum(payment.amount for payment in payments if payment.status == PaymentStatus.COMPLETED)
+    total_pending = sum(payment.amount for payment in payments if payment.status == PaymentStatus.PENDING)
+    remaining_balance = check.total_amount - total_paid - total_pending
+    
+    return {
+        "check_id": check_id,
+        "check_total": check.total_amount,
+        "total_paid": total_paid,
+        "total_pending": total_pending,
+        "remaining_balance": remaining_balance,
+        "is_fully_paid": remaining_balance <= 0,
+        "payments": payments
+    }
 
 
 def create_split_payment(db: Session, check_id: int, split_amounts: list[dict]):
@@ -174,58 +137,52 @@ def create_split_payment(db: Session, check_id: int, split_amounts: list[dict]):
         split_amounts: List of dicts with payment details: 
                       [{"amount": 25.00, "payment_type": "cash"}, {"amount": 30.00, "payment_type": "credit_card", "card_number": "1234"}]
     """
-    try:
-        # verify check exists
-        check = db.query(Check).filter(Check.id == check_id).first()
-        if not check:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Check with id {check_id} not found"
-            )
+    # verify check exists
+    check = db.query(Check).filter(Check.id == check_id).first()
+    if not check:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Check with id {check_id} not found"
+        )
+    
+    # Validate total split amount matches check total
+    total_split = sum(Decimal(str(split["amount"])) for split in split_amounts)
+    if total_split != check.total_amount:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Split payment total ({total_split}) does not match check total ({check.total_amount})"
+        )
+    
+    # check for existing payments
+    existing_payments = payment_repo.filter_by(db, check_id=check_id)
+    existing_payments = [p for p in existing_payments if p.status in [PaymentStatus.COMPLETED, PaymentStatus.PENDING]]
+    
+    if existing_payments:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot create split payments - check already has existing payments"
+        )
+    
+    created_payments = []
+    for split in split_amounts:
+        payment_type = PaymentType(split["payment_type"])
+        payment_status = PaymentStatus.COMPLETED if payment_type == PaymentType.CASH else PaymentStatus.PENDING
         
-        # validate total split amount matches check total
-        total_split = sum(Decimal(str(split["amount"])) for split in split_amounts)
-        if total_split != check.total_amount:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Split payment total ({total_split}) does not match check total ({check.total_amount})"
-            )
+        new_payment = Payment(
+            check_id=check_id,
+            amount=Decimal(str(split["amount"])),
+            payment_type=payment_type,
+            status=payment_status,
+            card_number=split.get("card_number")
+        )
         
-        # check for existing payments
-        existing_payments = db.query(model.Payment).filter(
-            model.Payment.check_id == check_id,
-            model.Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-        ).all()
-        
-        if existing_payments:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot create split payments - check already has existing payments"
-            )
-        
-        created_payments = []
-        for split in split_amounts:
-            payment_type = PaymentType(split["payment_type"])
-            payment_status = PaymentStatus.COMPLETED if payment_type == PaymentType.CASH else PaymentStatus.PENDING
-            
-            new_payment = model.Payment(
-                check_id=check_id,
-                amount=Decimal(str(split["amount"])),
-                payment_type=payment_type,
-                status=payment_status,
-                card_number=split.get("card_number")
-            )
-            
-            db.add(new_payment)
-            created_payments.append(new_payment)
-        
-        db.commit()
-        
-        # refresh all payments
-        for payment in created_payments:
-            db.refresh(payment)
-        
-        return created_payments
-        
-    except SQLAlchemyError as e:
-        raise handle_database_error(e, operation="create split payment", log_context={"check_id": check_id})
+        db.add(new_payment)
+        created_payments.append(new_payment)
+    
+    db.commit()
+    
+    # refresh all payments
+    for payment in created_payments:
+        db.refresh(payment)
+    
+    return created_payments
