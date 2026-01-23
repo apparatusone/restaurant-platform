@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Boolean, Text
+from sqlalchemy.orm import relationship
 from shared.dependencies.database import Base
 
 
@@ -15,3 +16,6 @@ class Table(Base):
     section = Column(String(32), nullable=True)
     is_outdoor = Column(Boolean, default=False, nullable=False)
     notes = Column(Text, nullable=True)
+
+    # relationships
+    sessions = relationship("TableSession", back_populates="table")

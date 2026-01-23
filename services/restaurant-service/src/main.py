@@ -6,6 +6,7 @@ Manages tables, table sessions, ingredients, and kitchen operations.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from .routers import table, table_session, ingredient, kitchen
 
 app = FastAPI(
     title="Restaurant Service",
@@ -21,6 +22,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register routers
+app.include_router(table.router)
+app.include_router(table_session.router)
+app.include_router(ingredient.router)
+app.include_router(kitchen.router)
 
 
 @app.get("/")
