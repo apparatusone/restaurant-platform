@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException, status
-from datetime import datetime
+from datetime import datetime, timezone
 from shared.repositories import BaseRepository
 from ..models.table_sessions import TableSession
 from ..models.tables import Table
@@ -114,7 +114,7 @@ def close_session(db: Session, session_id: int):
             detail=f"Cannot close session: {len(open_checks)} open check(s) must be closed first"
         )
     
-    session.closed_at = datetime.utcnow()
+    session.closed_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(session)
     return session

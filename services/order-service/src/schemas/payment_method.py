@@ -22,7 +22,6 @@ class PaymentBase(BaseModel):
     payment_type: PaymentType = None
     status: PaymentStatus = PaymentStatus.PENDING
     card_number: Optional[str] = None
-    order_id: Optional[int] = None  # optional reference for tracking
 
 
 class PaymentCreate(PaymentBase):
@@ -35,7 +34,6 @@ class PaymentUpdate(BaseModel):
     payment_type: Optional[PaymentType] = None
     status: Optional[PaymentStatus] = None
     card_number: Optional[str] = None
-    order_id: Optional[int] = None
 
 
 class Payment(PaymentBase):

@@ -63,9 +63,11 @@ def delete(db: Session, table_id: int):
 
 def get_available_tables(db: Session):
     """Get tables that don't have an active (unclosed) session"""
-    occupied_table_ids = db.query(TableSession.table_id).filter(
+    from sqlalchemy import select
+    
+    occupied_table_ids = select(TableSession.table_id).filter(
         TableSession.closed_at.is_(None)
-    ).subquery()
+    ).scalar_subquery()
     
     return db.query(Table).filter(
         Table.id.notin_(occupied_table_ids)

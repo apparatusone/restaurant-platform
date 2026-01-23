@@ -79,9 +79,9 @@ def update(db: Session, check_id: int, request: CheckUpdate):
     
     # timestamps
     if request.status == CheckStatus.SENT and not check.submitted_at:
-        check.submitted_at = datetime.utcnow()
+        check.submitted_at = datetime.now(timezone.utc)
     elif request.status == CheckStatus.PAID and not check.paid_at:
-        check.paid_at = datetime.utcnow()
+        check.paid_at = datetime.now(timezone.utc)
     
     db.commit()
     db.refresh(check)
@@ -102,7 +102,7 @@ def submit_check(db: Session, check_id: int):
     update_check_totals(db, check_id)
     
     check.status = CheckStatus.SENT
-    check.submitted_at = datetime.utcnow()
+    check.submitted_at = datetime.now(timezone.utc)
     
     db.commit()
     db.refresh(check)
@@ -126,7 +126,7 @@ def process_payment(db: Session, check_id: int, tip_amount: Decimal = None):
         check.total_amount = check.subtotal + check.tax_amount + check.tip_amount
     
     check.status = CheckStatus.PAID
-    check.paid_at = datetime.utcnow()
+    check.paid_at = datetime.now(timezone.utc)
     
     db.commit()
     db.refresh(check)
@@ -317,9 +317,9 @@ def update_check_status(db: Session, check_id: int, new_status: CheckStatus):
     
     # set timestamps based on status
     if new_status == CheckStatus.SENT and not check.submitted_at:
-        check.submitted_at = datetime.utcnow()
+        check.submitted_at = datetime.now(timezone.utc)
     elif new_status == CheckStatus.PAID and not check.paid_at:
-        check.paid_at = datetime.utcnow()
+        check.paid_at = datetime.now(timezone.utc)
     
     check.status = new_status
     db.commit()
@@ -343,7 +343,7 @@ def get_checks_by_type(db: Session, is_virtual: bool = None):
 def create_payment_for_check(db: Session, check_id: int, request):
     """Create payment for a check with business rule validation"""
     from ..models.payment_method import Payment, PaymentType, PaymentStatus
-    from shared.models.order_items import OrderItem, OrderItemStatus
+    from shared.models.check_items import CheckItemStatus
     
     check = db.query(Check).filter(Check.id == check_id).first()
     if not check:
@@ -408,7 +408,7 @@ def create_payment_for_check(db: Session, check_id: int, request):
     total_payments_after = total_existing + request.amount
     if total_payments_after >= check.total_amount:
         check.status = CheckStatus.PAID
-        check.paid_at = datetime.utcnow()
+        check.paid_at = datetime.now(timezone.utc)
     
     db.commit()
     db.refresh(check)
@@ -426,7 +426,7 @@ def close_check(db: Session, check_id: int):
         raise_validation_error(f"Cannot close check with status '{check.status.value}'. Check must be paid before closing.")
     
     check.status = CheckStatus.CLOSED
-    check.updated_at = datetime.utcnow()
+    check.updated_at = datetime.now(timezone.utc)
     
     db.commit()
     db.refresh(check)
