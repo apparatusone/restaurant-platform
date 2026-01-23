@@ -9,7 +9,6 @@ from . import (
     administrator_actions,
     reviews,
     promotions,
-    analytics,
     staff,
     auth,
     config,
@@ -20,7 +19,6 @@ from . import (
 )
 
 def load_routes(app):
-    app.include_router(analytics.router)
     app.include_router(administrator_actions.router)
     app.include_router(check_items.router)
     app.include_router(ingredients.router)
