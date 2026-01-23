@@ -6,12 +6,17 @@ Manages staff accounts, authentication, and authorization.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from .models import model_loader
+from .routers import staff, auth
 
 app = FastAPI(
     title="Staff Service",
     description="Manages staff accounts, authentication, and authorization",
     version="1.0.0"
 )
+
+# Initialize database tables
+model_loader.index()
 
 # CORS middleware
 app.add_middleware(
@@ -21,6 +26,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register routers
+app.include_router(auth.router)
+app.include_router(staff.router)
 
 
 @app.get("/")
