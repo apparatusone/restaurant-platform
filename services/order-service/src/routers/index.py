@@ -3,7 +3,6 @@ from . import (
     ingredients,
     recipes,
     menu_items,
-    menu,
     payment_method,
     customers,
     administrator_actions,
@@ -24,7 +23,6 @@ def load_routes(app):
     app.include_router(ingredients.router)
     app.include_router(recipes.router)
     app.include_router(menu_items.router)
-    app.include_router(menu.router)
     app.include_router(payment_method.router)
     app.include_router(customers.router)
     app.include_router(reviews.router)
