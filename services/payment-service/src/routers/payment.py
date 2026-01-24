@@ -11,8 +11,8 @@ router = APIRouter(
 
 
 @router.post("/", response_model=schema.Payment)
-def create(request: schema.PaymentCreate, db: Session = Depends(get_db)):
-    return controller.create(db=db, request=request)
+async def create(request: schema.PaymentCreate, db: Session = Depends(get_db)):
+    return await controller.create(db=db, request=request)
 
 
 @router.get("/", response_model=list[schema.Payment])

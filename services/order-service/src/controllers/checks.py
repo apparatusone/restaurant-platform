@@ -114,30 +114,16 @@ def submit_check(db: Session, check_id: int):
     
     db.commit()
     db.refresh(check)
-    return check
-
-
-def process_payment(db: Session, check_id: int, tip_amount: Decimal = None):
-    """Process payment for check - works for both virtual and table checks"""
-    check = db.query(Check).filter(Check.id == check_id).first()
-    if not check:
-        raise_not_found("Check", check_id)
     
-    if check.status not in [CheckStatus.SENT, CheckStatus.READY]:
-        raise_validation_error(f"Check must be sent before payment. Current status: {check.status.value}")
+    # Notify restaurant-service kitchen queue (async call)
+    # Note: This is a write operation to the kitchen queue, so we call the owner service
+    if check.restaurant_id:
+        try:
+            asyncio.create_task(_notify_kitchen_queue(check.restaurant_id, check_id))
+        except Exception as e:
+            logger.warning(f"Failed to notify kitchen queue for check {check_id}: {e}")
+            # Don't fail the check submission if kitchen notification fails
     
-    # update totals to ensure accuracy
-    update_check_totals(db, check_id)
-    
-    if tip_amount is not None:
-        check.tip_amount = tip_amount
-        check.total_amount = check.subtotal + check.tax_amount + check.tip_amount
-    
-    check.status = CheckStatus.PAID
-    check.paid_at = datetime.now(timezone.utc)
-    
-    db.commit()
-    db.refresh(check)
     return check
 
 
@@ -282,8 +268,16 @@ async def get_check_summary(db: Session, check_id: int):
     # calculate current totals from check items
     calculated_totals = calculate_check_total(db, check_id)
     
-    # calculate payments made
-    total_payments = sum(payment.amount for payment in check.payments) if check.payments else Decimal('0.00')
+    # Fetch payments from payment-service (read operation)
+    total_payments = Decimal('0.00')
+    try:
+        response = await payment_client.get(f"/payments/check/{check_id}")
+        if response.status_code == 200:
+            payments = response.json()
+            total_payments = sum(Decimal(str(p.get('amount', 0))) for p in payments)
+    except Exception as e:
+        logger.warning(f"Failed to fetch payments from payment-service: {e}")
+        # Continue without payment data
     
     return {
         'check': check,
@@ -347,9 +341,8 @@ def get_checks_by_type(db: Session, is_virtual: bool = None):
     return query.all()
 
 
-def create_payment_for_check(db: Session, check_id: int, request):
-    """Create payment for a check with business rule validation"""
-    from ..models.payment_method import Payment, PaymentType, PaymentStatus
+async def create_payment_for_check(db: Session, check_id: int, request):
+    """Create payment for a check with business rule validation - delegates to payment-service"""
     from shared.models.check_items import CheckItemStatus
     
     check = db.query(Check).filter(Check.id == check_id).first()
@@ -383,43 +376,37 @@ def create_payment_for_check(db: Session, check_id: int, request):
     if request.amount <= 0:
         raise_validation_error("Payment amount must be greater than 0")
     
-    # check if it's already been paid
-    existing_payments = db.query(Payment).filter(
-        Payment.check_id == check_id,
-        Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-    ).all()
-    
-    total_existing = sum(payment.amount for payment in existing_payments)
-    
-    remaining_balance = check.total_amount - total_existing
-    if request.amount > remaining_balance:
-        raise_validation_error(
-            f"Payment amount ({request.amount}) exceeds remaining balance ({remaining_balance}). "
-            f"Check total: {check.total_amount}, Already paid: {total_existing}, "
-            f"Existing payments: {len(existing_payments)}"
+    # Call payment-service to create payment (write operation)
+    # payment-service owns the Payment table, so we must call it for writes
+    try:
+        response = await payment_client.post(
+            "/payments",
+            json={
+                "check_id": check_id,
+                "amount": float(request.amount),
+                "payment_type": request.payment_type.value if hasattr(request.payment_type, 'value') else request.payment_type,
+                "card_number": request.card_number
+            }
         )
+        
+        if response.status_code == 201 or response.status_code == 200:
+            payment_data = response.json()
+            logger.info(f"Payment created via payment-service: {payment_data}")
+            
+            # payment-service will notify us back to update check status
+            # For now, we can update the check status here if payment is completed
+            # Note: In production, payment-service should call us back via webhook
+            
+            return check
+        else:
+            raise_validation_error(f"Payment service returned error: {response.status_code}")
     
-    payment_status = PaymentStatus.COMPLETED if request.payment_type == PaymentType.CASH else PaymentStatus.COMPLETED
-    
-    new_payment = Payment(
-        check_id=check_id,
-        amount=request.amount,
-        payment_type=request.payment_type,
-        status=payment_status,
-        card_number=request.card_number
-    )
-    
-    db.add(new_payment)
-    
-    # calc remaining
-    total_payments_after = total_existing + request.amount
-    if total_payments_after >= check.total_amount:
-        check.status = CheckStatus.PAID
-        check.paid_at = datetime.now(timezone.utc)
-    
-    db.commit()
-    db.refresh(check)
-    return check
+    except Exception as e:
+        logger.error(f"Failed to create payment via payment-service: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Payment service unavailable: {str(e)}"
+        )
 
 
 def close_check(db: Session, check_id: int):
@@ -437,6 +424,26 @@ def close_check(db: Session, check_id: int):
     
     db.commit()
     db.refresh(check)
+    return check
+
+
+def mark_check_paid_by_payment_service(db: Session, check_id: int, payment_id: int):
+    """
+    Called by payment-service after successful payment completion
+    This is the callback endpoint for inter-service communication
+    """
+    check = db.query(Check).filter(Check.id == check_id).first()
+    if not check:
+        raise_not_found("Check", check_id)
+    
+    # Update check status to paid
+    check.status = CheckStatus.PAID
+    check.paid_at = datetime.now(timezone.utc)
+    
+    db.commit()
+    db.refresh(check)
+    
+    logger.info(f"Check {check_id} marked as paid by payment-service (payment_id: {payment_id})")
     return check
 
 

@@ -4,7 +4,6 @@ from decimal import Decimal
 from shared.dependencies.database import get_db
 from ..schemas import checks as schema
 from shared.schemas import check_items as order_item_schema
-from ..schemas import payment_method as payment_schema
 from ..controllers import checks as controller
 from ..controllers import check_items as order_item_controller
 
@@ -51,11 +50,6 @@ def submit_check(check_id: int, db: Session = Depends(get_db)):
     return controller.submit_check(db=db, check_id=check_id)
 
 
-@router.post("/{check_id}/payment", response_model=schema.Check)
-def process_payment(check_id: int, tip_amount: Decimal = None, db: Session = Depends(get_db)):
-    return controller.process_payment(db=db, check_id=check_id, tip_amount=tip_amount)
-
-
 @router.delete("/{check_id}")
 def delete_check(check_id: int, db: Session = Depends(get_db)):
     return controller.delete(db=db, check_id=check_id)
@@ -75,13 +69,13 @@ def recalculate_check_totals(check_id: int, db: Session = Depends(get_db)):
     return controller.update_check_totals(db=db, check_id=check_id)
 
 
-@router.post("/{check_id}/payments", response_model=schema.Check)
-def create_payment_for_check(check_id: int, request: payment_schema.CheckPaymentCreate, db: Session = Depends(get_db)):
-    """Create payment for a check"""
-    return controller.create_payment_for_check(db=db, check_id=check_id, request=request)
-
-
 @router.put("/{check_id}/close", response_model=schema.Check)
 def close_check(check_id: int, db: Session = Depends(get_db)):
     """Close a paid check"""
     return controller.close_check(db=db, check_id=check_id)
+
+
+@router.put("/{check_id}/mark-paid", response_model=schema.Check)
+def mark_check_paid(check_id: int, payment_id: int, db: Session = Depends(get_db)):
+    """Mark check as paid - called by payment-service after successful payment"""
+    return controller.mark_check_paid_by_payment_service(db=db, check_id=check_id, payment_id=payment_id)

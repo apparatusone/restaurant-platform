@@ -1,15 +1,59 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from shared.repositories import BaseRepository
+from shared.utils.http_client import ResilientHttpClient
 from ..models.payment import Payment, PaymentType, PaymentStatus
 from ..schemas.payment import PaymentCreate, PaymentUpdate
 from decimal import Decimal
+import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Initialize repository
 payment_repo = BaseRepository[Payment, PaymentCreate, PaymentUpdate](Payment)
 
+# Initialize HTTP client for order-service
+ORDER_SERVICE_URL = os.getenv("ORDER_SERVICE_URL", "http://localhost:8002")
+order_service_client = ResilientHttpClient(base_url=ORDER_SERVICE_URL)
 
-def create(db: Session, request: PaymentCreate):
+
+async def notify_order_service(check_id: int, payment_id: int) -> bool:
+    """
+    Notify order-service that a payment has been completed
+    
+    Args:
+        check_id: The check ID that was paid
+        payment_id: The payment ID
+    
+    Returns:
+        True if notification was successful, False otherwise
+    """
+    try:
+        logger.info(f"Notifying order-service of payment completion for check {check_id}")
+        
+        # Call order-service to update check status to PAID
+        response = await order_service_client.put(
+            f"/checks/{check_id}",
+            json={"status": "paid"}
+        )
+        
+        if response.status_code == 200:
+            logger.info(f"Successfully notified order-service of payment {payment_id} for check {check_id}")
+            return True
+        else:
+            logger.error(
+                f"Failed to notify order-service: status {response.status_code}, "
+                f"response: {response.text}"
+            )
+            return False
+    
+    except Exception as e:
+        logger.error(f"Error notifying order-service for check {check_id}: {e}")
+        return False
+
+
+async def create(db: Session, request: PaymentCreate):
     """Create payment"""
     # Note: Check validation will need to be done via order-service API call
     # For now, we'll create the payment and assume check_id is valid
@@ -41,6 +85,20 @@ def create(db: Session, request: PaymentCreate):
     db.add(new_payment)
     db.commit()
     db.refresh(new_payment)
+    
+    # Notify order-service if payment is completed
+    if new_payment.status == PaymentStatus.COMPLETED:
+        notification_success = await notify_order_service(
+            check_id=new_payment.check_id,
+            payment_id=new_payment.id
+        )
+        
+        if not notification_success:
+            logger.warning(
+                f"Payment {new_payment.id} created but order-service notification failed. "
+                f"Check {new_payment.check_id} may need manual status update."
+            )
+    
     return new_payment
 
 

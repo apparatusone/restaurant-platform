@@ -44,4 +44,3 @@ class Check(Base):
     # relationships
     session = relationship("TableSeating", back_populates="checks")
     check_items = relationship("CheckItem", back_populates="check", cascade="all, delete-orphan")
-    payments = relationship("Payment", back_populates="check", cascade="all, delete-orphan")

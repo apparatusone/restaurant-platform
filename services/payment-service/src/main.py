@@ -20,6 +20,17 @@ app.add_middleware(
 # Register routers
 app.include_router(payment.router)
 
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {"service": "payment-service", "status": "running"}
+
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "payment-service"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8004)
