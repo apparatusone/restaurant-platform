@@ -11,12 +11,12 @@ from .table import (
     NotesStr as TableNotesStr
 )
 
-from .table_session import (
-    TableSessionBase,
-    TableSessionCreate,
-    TableSessionUpdate,
-    TableSession,
-    NotesStr as SessionNotesStr
+from .table_seating import (
+    TableSeatingBase,
+    TableSeatingCreate,
+    TableSeatingUpdate,
+    TableSeating,
+    NotesStr as SeatingNotesStr
 )
 
 __all__ = [
@@ -29,10 +29,10 @@ __all__ = [
     "TableCode",
     "SectionStr",
     "TableNotesStr",
-    # Table session schemas
-    "TableSessionBase",
-    "TableSessionCreate",
-    "TableSessionUpdate",
-    "TableSession",
-    "SessionNotesStr",
+    # Table seating schemas
+    "TableSeatingBase",
+    "TableSeatingCreate",
+    "TableSeatingUpdate",
+    "TableSeating",
+    "SeatingNotesStr",
 ]

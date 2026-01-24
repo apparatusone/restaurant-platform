@@ -39,4 +39,4 @@ class Table(TableBase):
 
 class TableWithSession(Table):
     """Table with current session info for floor view"""
-    current_session_id: Optional[int] = None
+    current_seating_id: Optional[int] = None

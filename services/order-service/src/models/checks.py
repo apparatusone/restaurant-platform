@@ -20,7 +20,7 @@ class Check(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     
     # Session reference (nullable for virtual/online orders)
-    session_id = Column(Integer, ForeignKey('table_sessions.id'), nullable=True)
+    seating_id = Column(Integer, ForeignKey('table_seatings.id'), nullable=True)
     is_virtual = Column(Boolean, default=False, nullable=False)
     
     # Multi-tenant support
@@ -42,6 +42,6 @@ class Check(Base):
     paid_at = Column(DateTime(timezone=True), nullable=True)
     
     # relationships
-    session = relationship("TableSession", back_populates="checks")
+    session = relationship("TableSeating", back_populates="checks")
     check_items = relationship("CheckItem", back_populates="check", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="check", cascade="all, delete-orphan")

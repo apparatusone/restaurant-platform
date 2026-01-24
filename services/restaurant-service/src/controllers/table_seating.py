@@ -2,16 +2,16 @@ from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException, status
 from datetime import datetime, timezone
 from shared.repositories import BaseRepository
-from ..models.table_session import TableSession
+from ..models.table_seating import TableSeating
 from ..models.table import Table
-from ..schemas.table_session import TableSessionCreate, TableSessionUpdate
+from ..schemas.table_seating import TableSeatingCreate, TableSeatingUpdate
 
 # Initialize repository
-session_repo = BaseRepository[TableSession, TableSessionCreate, TableSessionUpdate](TableSession)
+seating_repo = BaseRepository[TableSeating, TableSeatingCreate, TableSeatingUpdate](TableSeating)
 
 
-def create(db: Session, request: TableSessionCreate):
-    """Create table session"""
+def create(db: Session, request: TableSeatingCreate):
+    """Create table seating"""
     # Validate table exists
     table = db.query(Table).filter(Table.id == request.table_id).first()
     if not table:
@@ -21,9 +21,9 @@ def create(db: Session, request: TableSessionCreate):
         )
     
     # Check if table is already occupied
-    active_session = db.query(TableSession).filter(
-        TableSession.table_id == request.table_id,
-        TableSession.closed_at.is_(None)
+    active_session = db.query(TableSeating).filter(
+        TableSeating.table_id == request.table_id,
+        TableSeating.closed_at.is_(None)
     ).first()
     
     if active_session:
@@ -35,57 +35,57 @@ def create(db: Session, request: TableSessionCreate):
     # Note: Server validation will be handled via staff-service in the future
     # For now, we accept assigned_server_id without validation
     
-    return session_repo.create(db, request)
+    return seating_repo.create(db, request)
 
 
 def read_all(db: Session):
     """Get all sessions"""
-    return db.query(TableSession).all()
+    return db.query(TableSeating).all()
 
 
 def read_active_sessions(db: Session):
     """Get only active (unclosed) sessions"""
-    return db.query(TableSession).filter(
-        TableSession.closed_at.is_(None)
+    return db.query(TableSeating).filter(
+        TableSeating.closed_at.is_(None)
     ).all()
 
 
-def read_one(db: Session, session_id: int):
-    """Get single session"""
-    session = db.query(TableSession).filter(TableSession.id == session_id).first()
+def read_one(db: Session, seating_id: int):
+    """Get single seating"""
+    seating = db.query(TableSeating).filter(TableSeating.id == seating_id).first()
     
-    if not session:
+    if not seating:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Session with id {session_id} not found"
+            detail=f"Seating with id {seating_id} not found"
         )
-    return session
+    return seating
 
 
-def update(db: Session, session_id: int, request: TableSessionUpdate):
-    """Update session"""
-    session = session_repo.get_or_404(db, session_id)
+def update(db: Session, seating_id: int, request: TableSeatingUpdate):
+    """Update seating"""
+    seating = seating_repo.get_or_404(db, seating_id)
     
     # Note: Server validation will be handled via staff-service in the future
     # For now, we accept assigned_server_id without validation
     
-    return session_repo.update(db, session_id, request)
+    return seating_repo.update(db, seating_id, request)
 
 
-def close_session(db: Session, session_id: int):
-    """Close a session and free up the table"""
-    session = session_repo.get_or_404(db, session_id)
+def close_session(db: Session, seating_id: int):
+    """Close a seating and free up the table"""
+    seating = seating_repo.get_or_404(db, seating_id)
     
-    if session.closed_at:
+    if seating.closed_at:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Session is already closed"
+            detail="Seating is already closed"
         )
     
     # Note: Check validation will be handled via order-service in the future
-    # For now, we allow closing sessions without check validation
+    # For now, we allow closing seatings without check validation
     
-    session.closed_at = datetime.now(timezone.utc)
+    seating.closed_at = datetime.now(timezone.utc)
     db.commit()
-    db.refresh(session)
-    return session
+    db.refresh(seating)
+    return seating

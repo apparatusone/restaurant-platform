@@ -36,9 +36,9 @@ def get_check(check_id: int, db: Session = Depends(get_db)):
     return controller.read_one(db, check_id=check_id)
 
 
-@router.get("/session/{session_id}", response_model=list[schema.Check])
-def get_checks_by_session(session_id: int, db: Session = Depends(get_db)):
-    return controller.read_by_session(db, session_id=session_id)
+@router.get("/seating/{seating_id}", response_model=list[schema.Check])
+def get_checks_by_seating(seating_id: int, db: Session = Depends(get_db)):
+    return controller.read_by_seating(db, seating_id=seating_id)
 
 
 @router.put("/{check_id}", response_model=schema.Check)

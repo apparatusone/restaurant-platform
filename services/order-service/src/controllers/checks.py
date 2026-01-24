@@ -5,31 +5,40 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from ..models.checks import Check, CheckStatus
 from shared.models.check_items import CheckItem
-from ..models.table_sessions import TableSession
 from ..schemas.checks import CheckCreate, CheckUpdate
 from ..utils.errors import (
     raise_not_found,
     raise_validation_error,
     raise_status_transition_error
 )
+from ..clients import restaurant_client, payment_client
+import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def create(db: Session, request: CheckCreate):
-    # validate session for non-virtual checks
-    if not request.is_virtual and request.session_id:
-        session = db.query(TableSession).filter(TableSession.id == request.session_id).first()
-        if not session:
-            raise_not_found("Session", request.session_id)
-        
-        if session.closed_at:
-            raise_validation_error("Cannot create check for closed session")
-    elif not request.is_virtual and not request.session_id:
-        raise_validation_error("Non-virtual checks must have a session_id")
-    elif request.is_virtual and request.session_id:
-        raise_validation_error("Virtual checks cannot have a session_id")
+    # validate seating for non-virtual checks
+    if not request.is_virtual and request.seating_id:
+        # Call restaurant-service to validate seating
+        try:
+            seating = restaurant_client.get_seating(request.seating_id)
+            if not seating:
+                raise_not_found("Seating", request.seating_id)
+            
+            if seating.get('ended_at'):
+                raise_validation_error("Cannot create check for closed seating")
+        except Exception as e:
+            logger.error(f"Failed to validate seating: {e}")
+            raise_validation_error(f"Failed to validate seating: {str(e)}")
+    elif not request.is_virtual and not request.seating_id:
+        raise_validation_error("Non-virtual checks must have a seating_id")
+    elif request.is_virtual and request.seating_id:
+        raise_validation_error("Virtual checks cannot have a seating_id")
     
     new_check = Check(
-        session_id=request.session_id,
+        seating_id=request.seating_id,
         is_virtual=request.is_virtual,
         subtotal=request.subtotal or Decimal('0.00'),
         tax_amount=request.tax_amount or Decimal('0.00'),
@@ -44,9 +53,9 @@ def create(db: Session, request: CheckCreate):
 
 
 def read_all(db: Session):
-    """Get all checks with session info - handles both virtual and table checks"""
+    """Get all checks with seating info - handles both virtual and table checks"""
     return db.query(Check).options(
-        joinedload(Check.session),
+        joinedload(Check.seating),
         joinedload(Check.check_items)
     ).all()
 
@@ -54,18 +63,17 @@ def read_all(db: Session):
 def read_one(db: Session, check_id: int):
     """Get single check with full details - works for both virtual and table checks"""
     check = db.query(Check).options(
-        joinedload(Check.session),
-        joinedload(Check.check_items),
-        joinedload(Check.payments)
+        joinedload(Check.seating),
+        joinedload(Check.check_items)
     ).filter(Check.id == check_id).first()
     if not check:
         raise_not_found("Check", check_id)
     return check
 
 
-def read_by_session(db: Session, session_id: int):
-    """Get all checks for a specific session"""
-    return db.query(Check).filter(Check.session_id == session_id).all()
+def read_by_seating(db: Session, seating_id: int):
+    """Get all checks for a specific seating"""
+    return db.query(Check).filter(Check.seating_id == seating_id).all()
 
 
 def update(db: Session, check_id: int, request: CheckUpdate):
@@ -154,7 +162,7 @@ def delete(db: Session, check_id: int):
 def get_open_checks(db: Session, include_virtual: bool = True, include_table: bool = True):
     """Get all open checks - unified for virtual and table checks"""
     query = db.query(Check).filter(Check.status == CheckStatus.OPEN).options(
-        joinedload(Check.session),
+        joinedload(Check.seating),
         joinedload(Check.check_items)
     )
     
@@ -171,7 +179,7 @@ def get_pending_checks(db: Session, include_virtual: bool = True, include_table:
     query = db.query(Check).filter(
         Check.status.in_([CheckStatus.SENT, CheckStatus.READY])
     ).options(
-        joinedload(Check.session),
+        joinedload(Check.seating),
         joinedload(Check.check_items)
     )
     
@@ -198,7 +206,7 @@ def get_virtual_checks(db: Session, status: CheckStatus = None):
 def get_table_checks(db: Session, status: CheckStatus = None):
     """Get a table's checks with optional status filter"""
     query = db.query(Check).filter(Check.is_virtual == False).options(
-        joinedload(Check.session),
+        joinedload(Check.seating),
         joinedload(Check.check_items)
     )
     
@@ -249,7 +257,7 @@ def get_checks_with_items(db: Session, include_virtual: bool = True, include_tab
     """Get checks with their associated check items"""
     query = db.query(Check).options(
         joinedload(Check.check_items),
-        joinedload(Check.session)
+        joinedload(Check.seating)
     )
     
     if include_virtual and not include_table:
@@ -261,12 +269,11 @@ def get_checks_with_items(db: Session, include_virtual: bool = True, include_tab
     return query.all()
 
 
-def get_check_summary(db: Session, check_id: int):
+async def get_check_summary(db: Session, check_id: int):
     """Get comprehensive check summary - works for both virtual and table checks"""
     check = db.query(Check).options(
         joinedload(Check.check_items).joinedload(CheckItem.menu_item),
-        joinedload(Check.session),
-        joinedload(Check.payments)
+        joinedload(Check.seating)
     ).filter(Check.id == check_id).first()
     
     if not check:
@@ -331,7 +338,7 @@ def get_checks_by_type(db: Session, is_virtual: bool = None):
     """Get checks filtered by type (virtual or table)"""
     query = db.query(Check).options(
         joinedload(Check.check_items),
-        joinedload(Check.session)
+        joinedload(Check.seating)
     )
     
     if is_virtual is not None:

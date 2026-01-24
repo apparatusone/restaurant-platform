@@ -3,11 +3,11 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from shared.dependencies.database import Base
 
-class TableSession(Base):
+class TableSeating(Base):
     """
     Represents a dining session for a single table
     """
-    __tablename__ = "table_sessions"
+    __tablename__ = "table_seatings"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     table_id = Column(Integer, ForeignKey("tables.id"), nullable=False, index=True)
@@ -17,6 +17,6 @@ class TableSession(Base):
     notes = Column(Text, nullable=True)
 
     # relationships
-    assigned_server = relationship("Staff", back_populates="table_sessions")
-    table = relationship("Table", back_populates="sessions")
-    checks = relationship("Check", back_populates="session")
+    assigned_server = relationship("Staff", back_populates="table_seatings")
+    table = relationship("Table", back_populates="seatings")
+    checks = relationship("Check", back_populates="seating")

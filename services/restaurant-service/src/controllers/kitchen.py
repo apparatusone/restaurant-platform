@@ -26,7 +26,7 @@ except ImportError:
     class Check(Base):
         __tablename__ = "checks"
         id = Column(Integer, primary_key=True)
-        session_id = Column(Integer, nullable=True)
+        seating_id = Column(Integer, nullable=True)
         is_virtual = Column(Boolean, default=False)
         status = Column(Enum(CheckStatus, values_callable=lambda obj: [e.value for e in obj]), default=CheckStatus.OPEN)
         subtotal = Column(Numeric(10, 2), default=0.00)

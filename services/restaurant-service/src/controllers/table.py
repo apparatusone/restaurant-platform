@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from shared.repositories import BaseRepository
 from ..models.table import Table
-from ..models.table_session import TableSession
+from ..models.table_seating import TableSeating
 from ..schemas.table import TableCreate, TableUpdate
 from fastapi import HTTPException, status
 
@@ -51,9 +51,9 @@ def update(db: Session, table_id: int, request: TableUpdate):
 
 def delete(db: Session, table_id: int):
     # Check if table has an active session
-    active_session = db.query(TableSession).filter(
-        TableSession.table_id == table_id,
-        TableSession.closed_at.is_(None)
+    active_session = db.query(TableSeating).filter(
+        TableSeating.table_id == table_id,
+        TableSeating.closed_at.is_(None)
     ).first()
     
     if active_session:
@@ -74,8 +74,8 @@ def get_available_tables(db: Session):
     """Get tables that don't have an active (unclosed) session"""
     from sqlalchemy import select
     
-    occupied_table_ids = select(TableSession.table_id).filter(
-        TableSession.closed_at.is_(None)
+    occupied_table_ids = select(TableSeating.table_id).filter(
+        TableSeating.closed_at.is_(None)
     ).scalar_subquery()
     
     return db.query(Table).filter(
@@ -86,10 +86,10 @@ def get_available_tables(db: Session):
 def get_occupied_tables(db: Session):
     """Get tables that have an active (unclosed) session"""
     return db.query(Table).join(
-        TableSession,
-        Table.id == TableSession.table_id
+        TableSeating,
+        Table.id == TableSeating.table_id
     ).filter(
-        TableSession.closed_at.is_(None)
+        TableSeating.closed_at.is_(None)
     ).all()
 
 
@@ -97,12 +97,12 @@ def get_tables_with_session_info(db: Session):
     """Get all tables with their current session ID (for floor view) - single query with LEFT JOIN"""
     results = db.query(
         Table,
-        TableSession.id.label('current_session_id')
+        TableSeating.id.label('current_session_id')
     ).outerjoin(
-        TableSession,
+        TableSeating,
         and_(
-            TableSession.table_id == Table.id,
-            TableSession.closed_at.is_(None)
+            TableSeating.table_id == Table.id,
+            TableSeating.closed_at.is_(None)
         )
     ).all()
     

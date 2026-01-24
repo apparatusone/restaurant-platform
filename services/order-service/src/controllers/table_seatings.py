@@ -2,17 +2,17 @@ from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException, status
 from datetime import datetime, timezone
 from shared.repositories import BaseRepository
-from ..models.table_sessions import TableSession
+from ..models.table_seatings import TableSeating
 from ..models.tables import Table
 from ..models.staff import Staff
-from ..schemas.table_sessions import TableSessionCreate, TableSessionUpdate
+from ..schemas.table_seatings import TableSessionCreate, TableSessionUpdate
 
 # Initialize repository
-session_repo = BaseRepository[TableSession, TableSessionCreate, TableSessionUpdate](TableSession)
+session_repo = BaseRepository[TableSeating, TableSessionCreate, TableSessionUpdate](TableSeating)
 
 
 def create(db: Session, request: TableSessionCreate):
-    """Create table session"""
+    """Create table seating"""
     # Validate table exists
     table = db.query(Table).filter(Table.id == request.table_id).first()
     if not table:
@@ -22,9 +22,9 @@ def create(db: Session, request: TableSessionCreate):
         )
     
     # Check if table is already occupied
-    active_session = db.query(TableSession).filter(
-        TableSession.table_id == request.table_id,
-        TableSession.closed_at.is_(None)
+    active_session = db.query(TableSeating).filter(
+        TableSeating.table_id == request.table_id,
+        TableSeating.closed_at.is_(None)
     ).first()
     
     if active_session:
@@ -47,25 +47,25 @@ def create(db: Session, request: TableSessionCreate):
 
 def read_all(db: Session):
     """Get all sessions with server info"""
-    return db.query(TableSession).options(
-        joinedload(TableSession.assigned_server)
+    return db.query(TableSeating).options(
+        joinedload(TableSeating.assigned_server)
     ).all()
 
 
 def read_active_sessions(db: Session):
     """Get only active (unclosed) sessions"""
-    return db.query(TableSession).filter(
-        TableSession.closed_at.is_(None)
+    return db.query(TableSeating).filter(
+        TableSeating.closed_at.is_(None)
     ).options(
-        joinedload(TableSession.assigned_server)
+        joinedload(TableSeating.assigned_server)
     ).all()
 
 
-def read_one(db: Session, session_id: int):
+def read_one(db: Session, seating_id: int):
     """Get single session with server info"""
-    session = db.query(TableSession).options(
-        joinedload(TableSession.assigned_server)
-    ).filter(TableSession.id == session_id).first()
+    session = db.query(TableSeating).options(
+        joinedload(TableSeating.assigned_server)
+    ).filter(TableSeating.id == session_id).first()
     
     if not session:
         raise HTTPException(
@@ -75,7 +75,7 @@ def read_one(db: Session, session_id: int):
     return session
 
 
-def update(db: Session, session_id: int, request: TableSessionUpdate):
+def update(db: Session, seating_id: int, request: TableSessionUpdate):
     """Update session with server validation"""
     session = session_repo.get_or_404(db, session_id)
     
@@ -91,7 +91,7 @@ def update(db: Session, session_id: int, request: TableSessionUpdate):
     return session_repo.update(db, session_id, request)
 
 
-def close_session(db: Session, session_id: int):
+def close_session(db: Session, seating_id: int):
     """Close a session and free up the table"""
     session = session_repo.get_or_404(db, session_id)
     
@@ -104,7 +104,7 @@ def close_session(db: Session, session_id: int):
     # Check if there are any open checks for this session
     from ..models.checks import Check
     open_checks = db.query(Check).filter(
-        Check.session_id == session_id,
+        Check.seating_id == session_id,
         Check.status != 'closed'
     ).all()
     

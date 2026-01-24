@@ -1,16 +1,16 @@
 """
 Restaurant Service - Main Application
 
-Manages tables, table sessions, ingredients, and kitchen operations.
+Manages tables, table seatings, ingredients, and kitchen operations.
 """
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import table, table_session, ingredient, kitchen
+from .routers import table, table_seating, ingredient, kitchen
 
 app = FastAPI(
     title="Restaurant Service",
-    description="Manages tables, table sessions, ingredients, and kitchen operations",
+    description="Manages tables, table seatings, ingredients, and kitchen operations",
     version="1.0.0"
 )
 
@@ -25,7 +25,7 @@ app.add_middleware(
 
 # Register routers
 app.include_router(table.router)
-app.include_router(table_session.router)
+app.include_router(table_seating.router)
 app.include_router(ingredient.router)
 app.include_router(kitchen.router)
 
