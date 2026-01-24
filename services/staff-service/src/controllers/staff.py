@@ -42,6 +42,11 @@ def update(db: Session, id: int, request: StaffUpdate):
     # Prevent staff_id changes (security: prevents login code reassignment)
     update_data.pop("staff_id", None)
     
+    # Hash PIN if provided
+    if 'pin' in update_data:
+        pin = update_data.pop('pin')
+        update_data['pin_hash'] = hash_pin(pin)
+    
     for key, value in update_data.items():
         setattr(staff, key, value)
     

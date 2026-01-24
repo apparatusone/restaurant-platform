@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from ..models.staff import Staff as StaffModel
 from ..schemas.auth import PinLoginRequest, PinLoginResponse, AuthUser
 from ..security.hashing import verify_pin
+from datetime import datetime
 import time
 from dotenv import load_dotenv
 import os
@@ -64,8 +65,9 @@ def pin_login(db: Session, req: PinLoginRequest) -> PinLoginResponse:
         else:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Wrong PIN, {remaining_attempts} attempts remaining.")
 
-    # TODO: track last login datetime
+    # Update last login and reset failed attempts
     staff.failed_attempts = 0
+    staff.last_login = datetime.now()
     db.commit()
 
     token = _make_token(staff=staff)
