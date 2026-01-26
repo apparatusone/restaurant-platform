@@ -7,7 +7,6 @@ from ..models.recipes import Recipe
 from ..models.ingredients import Ingredient
 from ..models import promotions as promotion_model
 from ..models.payment_method import Payment, PaymentStatus
-from ..models.reviews import Reviews
 from shared.models.menu_items import MenuItem
 from shared.utils.error_handlers import handle_database_error
     
@@ -88,14 +87,7 @@ def get_daily_revenue(db: Session, target_date: date):
         "completed_orders": check_count,
         "total_revenue": round(total_revenue, 2)
     }
-
-
-def review_feedback(db: Session, rating: int):
-    """
-    Get reviews filtered by rating
-    """
-    return db.query(Reviews).join(MenuItem).filter(Reviews.rating == rating).all()
-
+    
 
 def add_menu_item(db: Session, request):
     """
