@@ -14,7 +14,6 @@ ENV = os.getenv("ENV", "local")
 
 # Add project root to path for shared imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from shared.config import config
 from shared.utils.http_client import ResilientHttpClient, CircuitBreakerOpenError
 
 logging.basicConfig(level=logging.INFO)
@@ -121,11 +120,11 @@ async def jwt_validation_middleware(request: Request, call_next):
 
 # maps service names to their base URLs
 SERVICE_URLS = {
-    "staff-service": "http://localhost:8001",
-    "order-service": "http://localhost:8002",
-    "restaurant-service": "http://localhost:8003",
-    "payment-service": "http://localhost:8004",
-    "automation-service": "http://localhost:8005"
+    "staff-service": os.getenv("STAFF_SERVICE_URL", "http://localhost:8001"),
+    "order-service": os.getenv("ORDER_SERVICE_URL", "http://localhost:8002"),
+    "restaurant-service": os.getenv("RESTAURANT_SERVICE_URL", "http://localhost:8003"),
+    "payment-service": os.getenv("PAYMENT_SERVICE_URL", "http://localhost:8004"),
+    "automation-service": os.getenv("AUTOMATION_SERVICE_URL", "http://localhost:8005"),
 }
 
 # Initialize resilient HTTP clients for each service
@@ -142,6 +141,7 @@ SERVICE_CLIENTS = {
 ROUTE_MAP = {
     "auth": "staff-service",
     "staff": "staff-service",
+    "timeclock": "staff-service",
     "roles": "staff-service",
     "permissions": "staff-service",
     
