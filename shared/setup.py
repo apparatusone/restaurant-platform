@@ -8,5 +8,7 @@ setup(
         "sqlalchemy",
         "pydantic",
         "python-dotenv",
+        "httpx",
+        "pyyaml",
     ],
 )
