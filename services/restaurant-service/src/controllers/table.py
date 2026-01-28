@@ -97,7 +97,7 @@ def get_tables_with_session_info(db: Session):
     """Get all tables with their current session ID (for floor view) - single query with LEFT JOIN"""
     results = db.query(
         Table,
-        TableSeating.id.label('current_session_id')
+        TableSeating.id.label('current_seating_id')
     ).outerjoin(
         TableSeating,
         and_(
@@ -114,7 +114,7 @@ def get_tables_with_session_info(db: Session):
             "section": table.section,
             "is_outdoor": table.is_outdoor,
             "notes": table.notes,
-            "current_session_id": session_id
+            "current_seating_id": seating_id
         }
-        for table, session_id in results
+        for table, seating_id in results
     ]

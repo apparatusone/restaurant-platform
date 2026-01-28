@@ -6,7 +6,7 @@ from shared.dependencies.database import get_db
 
 router = APIRouter(
     tags=['Payment Method'],
-    prefix="/payment_method",
+    prefix="/payments",
 )
 
 

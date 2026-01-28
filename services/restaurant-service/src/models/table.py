@@ -18,4 +18,4 @@ class Table(Base):
     notes = Column(Text, nullable=True)
 
     # relationships
-    sessions = relationship("TableSeating", back_populates="table")
+    seatings = relationship("TableSeating", back_populates="table")
