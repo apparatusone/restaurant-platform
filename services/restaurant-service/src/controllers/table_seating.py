@@ -72,7 +72,7 @@ def update(db: Session, seating_id: int, request: TableSeatingUpdate):
     return seating_repo.update(db, seating_id, request)
 
 
-def close_session(db: Session, seating_id: int):
+async def close_seating(db: Session, seating_id: int):
     """Close a seating and free up the table"""
     seating = seating_repo.get_or_404(db, seating_id)
     
@@ -82,8 +82,30 @@ def close_session(db: Session, seating_id: int):
             detail="Seating is already closed"
         )
     
-    # Note: Check validation will be handled via order-service in the future
-    # For now, we allow closing seatings without check validation
+    # Validate all checks for this seating are paid
+    try:
+        response = await order_service_client.get(f"/checks/seating/{seating_id}")
+        checks = response.json()
+        
+        unpaid_checks = [
+            check for check in checks 
+            if check.get('status') not in ['paid', 'closed']
+        ]
+        
+        if unpaid_checks:
+            unpaid_ids = [check['id'] for check in unpaid_checks]
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot close table with unpaid checks: {unpaid_ids}"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to validate checks for seating {seating_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to verify payment status. Please try again."
+        )
     
     seating.closed_at = datetime.now(timezone.utc)
     db.commit()

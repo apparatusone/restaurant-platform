@@ -34,8 +34,7 @@ async def notify_order_service(check_id: int, payment_id: int) -> bool:
         
         # Call order-service to update check status to PAID
         response = await order_service_client.put(
-            f"/checks/{check_id}",
-            json={"status": "paid"}
+            f"/checks/{check_id}/mark-paid?payment_id={payment_id}"
         )
         
         if response.status_code == 200:
@@ -77,7 +76,7 @@ async def create(db: Session, request: PaymentCreate):
     # Set payment status based on type
     payment_status = PaymentStatus.COMPLETED if request.payment_type == PaymentType.CASH else request.status
     
-    # Create modified request with status
+    # Create payment with correct status
     payment_data = request.model_dump()
     payment_data['status'] = payment_status
     

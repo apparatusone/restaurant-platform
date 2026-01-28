@@ -1,19 +1,8 @@
 from datetime import datetime
 from pydantic import BaseModel
-from enum import Enum
 from typing import Optional
 from decimal import Decimal
-
-class PaymentType(str, Enum):
-    CASH = "cash"
-    CREDIT_CARD = "credit_card"
-    DEBIT_CARD = "debit_card"
-
-class PaymentStatus(str, Enum):
-    PENDING = "pending"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    REFUNDED = "refunded"
+from ..models.payment import PaymentType, PaymentStatus
 
 
 class PaymentBase(BaseModel):

@@ -2,16 +2,16 @@ from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Enum, Nume
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from shared.dependencies.database import Base
-import enum
+from enum import Enum as PyEnum
 
 
-class PaymentType(enum.Enum):
+class PaymentType(str, PyEnum):
     CASH = "cash"
     CREDIT_CARD = "credit_card"
     DEBIT_CARD = "debit_card"
 
 
-class PaymentStatus(enum.Enum):
+class PaymentStatus(str, PyEnum):
     PENDING = "pending"
     COMPLETED = "completed"
     FAILED = "failed"

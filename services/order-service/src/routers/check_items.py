@@ -6,7 +6,7 @@ from shared.dependencies.database import get_db
 
 router = APIRouter(
     tags=['Check Items'],
-    prefix="/checkitems"
+    prefix="/check-items"
 )
 
 

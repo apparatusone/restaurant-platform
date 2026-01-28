@@ -33,5 +33,5 @@ def update_seating(seating_id: int, request: schema.TableSeatingUpdate, db: Sess
 
 
 @router.post("/{seating_id}/close", response_model=schema.TableSeating)
-def close_seating(seating_id: int, db: Session = Depends(get_db)):
-    return controller.close_session(db=db, seating_id=seating_id)
+async def close_seating(seating_id: int, db: Session = Depends(get_db)):
+    return await controller.close_seating(db=db, seating_id=seating_id)

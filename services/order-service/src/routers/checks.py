@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from decimal import Decimal
+from pydantic import BaseModel
+from typing import Optional
 from shared.dependencies.database import get_db
 from ..schemas import checks as schema
 from shared.schemas import check_items as order_item_schema
@@ -10,9 +12,15 @@ from ..controllers import check_items as order_item_controller
 router = APIRouter(prefix="/checks", tags=["checks"])
 
 
+class CheckPaymentCreate(BaseModel):
+    amount: Decimal
+    payment_type: str = "cash"
+    card_number: Optional[str] = None
+
+
 @router.post("/", response_model=schema.Check)
-def create_check(request: schema.CheckCreate, db: Session = Depends(get_db)):
-    return controller.create(db=db, request=request)
+async def create_check(request: schema.CheckCreate, db: Session = Depends(get_db)):
+    return await controller.create(db=db, request=request)
 
 
 @router.get("/", response_model=list[schema.Check])
@@ -73,6 +81,19 @@ def recalculate_check_totals(check_id: int, db: Session = Depends(get_db)):
 def close_check(check_id: int, db: Session = Depends(get_db)):
     """Close a paid check"""
     return controller.close_check(db=db, check_id=check_id)
+
+
+@router.post("/{check_id}/payments", response_model=schema.Check)
+async def create_payment_for_check(
+    check_id: int,
+    request: CheckPaymentCreate,
+    db: Session = Depends(get_db),
+):
+    return await controller.create_payment_for_check(
+        db=db,
+        check_id=check_id,
+        request=request,
+    )
 
 
 @router.put("/{check_id}/mark-paid", response_model=schema.Check)

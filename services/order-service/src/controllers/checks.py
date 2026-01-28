@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 from datetime import datetime, timezone
 from decimal import Decimal
 from ..models.checks import Check, CheckStatus
-from shared.models.check_items import CheckItem
+from shared.models.check_items import CheckItem, CheckItemStatus
 from ..schemas.checks import CheckCreate, CheckUpdate
 from ..utils.errors import (
     raise_not_found,
@@ -18,16 +18,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def create(db: Session, request: CheckCreate):
+async def create(db: Session, request: CheckCreate):
     # validate seating for non-virtual checks
     if not request.is_virtual and request.seating_id:
         # Call restaurant-service to validate seating
         try:
-            seating = restaurant_client.get_seating(request.seating_id)
+            response = await restaurant_client.get(f"/seatings/{request.seating_id}")
+            seating = response.json()
             if not seating:
                 raise_not_found("Seating", request.seating_id)
             
-            if seating.get('ended_at'):
+            if seating.get('closed_at'):
                 raise_validation_error("Cannot create check for closed seating")
         except Exception as e:
             logger.error(f"Failed to validate seating: {e}")
@@ -55,7 +56,6 @@ def create(db: Session, request: CheckCreate):
 def read_all(db: Session):
     """Get all checks with seating info - handles both virtual and table checks"""
     return db.query(Check).options(
-        joinedload(Check.seating),
         joinedload(Check.check_items)
     ).all()
 
@@ -63,7 +63,6 @@ def read_all(db: Session):
 def read_one(db: Session, check_id: int):
     """Get single check with full details - works for both virtual and table checks"""
     check = db.query(Check).options(
-        joinedload(Check.seating),
         joinedload(Check.check_items)
     ).filter(Check.id == check_id).first()
     if not check:
@@ -148,7 +147,6 @@ def delete(db: Session, check_id: int):
 def get_open_checks(db: Session, include_virtual: bool = True, include_table: bool = True):
     """Get all open checks - unified for virtual and table checks"""
     query = db.query(Check).filter(Check.status == CheckStatus.OPEN).options(
-        joinedload(Check.seating),
         joinedload(Check.check_items)
     )
     
@@ -165,7 +163,6 @@ def get_pending_checks(db: Session, include_virtual: bool = True, include_table:
     query = db.query(Check).filter(
         Check.status.in_([CheckStatus.SENT, CheckStatus.READY])
     ).options(
-        joinedload(Check.seating),
         joinedload(Check.check_items)
     )
     
@@ -192,7 +189,6 @@ def get_virtual_checks(db: Session, status: CheckStatus = None):
 def get_table_checks(db: Session, status: CheckStatus = None):
     """Get a table's checks with optional status filter"""
     query = db.query(Check).filter(Check.is_virtual == False).options(
-        joinedload(Check.seating),
         joinedload(Check.check_items)
     )
     
@@ -242,8 +238,7 @@ def update_check_totals(db: Session, check_id: int):
 def get_checks_with_items(db: Session, include_virtual: bool = True, include_table: bool = True):
     """Get checks with their associated check items"""
     query = db.query(Check).options(
-        joinedload(Check.check_items),
-        joinedload(Check.seating)
+        joinedload(Check.check_items)
     )
     
     if include_virtual and not include_table:
@@ -258,8 +253,7 @@ def get_checks_with_items(db: Session, include_virtual: bool = True, include_tab
 async def get_check_summary(db: Session, check_id: int):
     """Get comprehensive check summary - works for both virtual and table checks"""
     check = db.query(Check).options(
-        joinedload(Check.check_items).joinedload(CheckItem.menu_item),
-        joinedload(Check.seating)
+        joinedload(Check.check_items).joinedload(CheckItem.menu_item)
     ).filter(Check.id == check_id).first()
     
     if not check:
@@ -331,8 +325,7 @@ def update_check_status(db: Session, check_id: int, new_status: CheckStatus):
 def get_checks_by_type(db: Session, is_virtual: bool = None):
     """Get checks filtered by type (virtual or table)"""
     query = db.query(Check).options(
-        joinedload(Check.check_items),
-        joinedload(Check.seating)
+        joinedload(Check.check_items)
     )
     
     if is_virtual is not None:
@@ -414,13 +407,24 @@ def close_check(db: Session, check_id: int):
     check = db.query(Check).filter(Check.id == check_id).first()
     if not check:
         raise_not_found("Check", check_id)
-    
-    # onlya allow closing paid checks
-    if check.status != CheckStatus.PAID:
-        raise_validation_error(f"Cannot close check with status '{check.status.value}'. Check must be paid before closing.")
-    
-    check.status = CheckStatus.CLOSED
-    check.updated_at = datetime.now(timezone.utc)
+
+    if check.status == CheckStatus.PAID:
+        check.status = CheckStatus.CLOSED
+        check.closed_at = datetime.now(timezone.utc)
+        check.updated_at = datetime.now(timezone.utc)
+    elif check.status == CheckStatus.OPEN:
+        item_count = db.query(CheckItem).filter(CheckItem.check_id == check_id).count()
+        if item_count > 0:
+            raise_validation_error(
+                f"Cannot close check with status '{check.status.value}'. Check must be paid before closing."
+            )
+        check.status = CheckStatus.CLOSED
+        check.closed_at = datetime.now(timezone.utc)
+        check.updated_at = datetime.now(timezone.utc)
+    else:
+        raise_validation_error(
+            f"Cannot close check with status '{check.status.value}'. Check must be paid before closing."
+        )
     
     db.commit()
     db.refresh(check)
