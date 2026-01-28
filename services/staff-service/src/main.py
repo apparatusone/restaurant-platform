@@ -7,7 +7,7 @@ Manages staff accounts, authentication, and authorization.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .models import model_loader
-from .routers import staff, auth
+from .routers import staff, auth, timeclock
 
 app = FastAPI(
     title="Staff Service",
@@ -30,6 +30,7 @@ app.add_middleware(
 # Register routers
 app.include_router(auth.router)
 app.include_router(staff.router)
+app.include_router(timeclock.router)
 
 
 @app.get("/")

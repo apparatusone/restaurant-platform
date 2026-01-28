@@ -1,7 +1,9 @@
 from shared.dependencies.database import engine
+from shared.dependencies.database import Base
 from . import staff
+from . import timeclock
 
 
 def index():
     """Initialize staff-service database tables"""
-    staff.Base.metadata.create_all(engine)
+    Base.metadata.create_all(engine)

@@ -86,6 +86,32 @@ async def jwt_validation_middleware(request: Request, call_next):
     request.state.staff_sid = payload.get("sid")
     request.state.staff_name = payload.get("name")
     request.state.staff_role = payload.get("role")
+
+    if request.url.path.startswith("/timeclock"):
+        return await call_next(request)
+
+    try:
+        staff_client = SERVICE_CLIENTS["staff-service"]
+        res = await staff_client.get(
+            "timeclock/status",
+            headers={"X-Staff-Id": str(request.state.staff_id)}
+        )
+        status_payload = res.json()
+        if not status_payload.get("clocked_in"):
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "User must be clocked in"}
+            )
+    except CircuitBreakerOpenError:
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Staff service unavailable"}
+        )
+    except Exception:
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Unable to verify clock-in status"}
+        )
     
     return await call_next(request)
 
