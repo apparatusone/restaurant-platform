@@ -344,6 +344,18 @@ async def root():
     return payload
 
 
+@app.api_route("/{resource}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def proxy_resource_root(resource: str, request: Request):
+    service_name = get_service_for_resource(resource)
+    return await proxy_request(service_name, f"/{resource}", request)
+
+
+@app.api_route("/{resource}/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def proxy_resource_path(resource: str, path: str, request: Request):
+    service_name = get_service_for_resource(resource)
+    return await proxy_request(service_name, f"/{resource}/{path}", request)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
