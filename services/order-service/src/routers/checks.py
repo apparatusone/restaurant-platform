@@ -58,6 +58,12 @@ def submit_check(check_id: int, db: Session = Depends(get_db)):
     return controller.submit_check(db=db, check_id=check_id)
 
 
+@router.post("/{check_id}/send", response_model=schema.Check)
+def send_to_kitchen(check_id: int, db: Session = Depends(get_db)):
+    """Submit if needed and promote pending items to preparing."""
+    return controller.send_to_kitchen(db=db, check_id=check_id)
+
+
 @router.delete("/{check_id}")
 def delete_check(check_id: int, db: Session = Depends(get_db)):
     return controller.delete(db=db, check_id=check_id)

@@ -150,15 +150,6 @@ def update(db: Session, item_id, request):
         item.update(update_data, synchronize_session=False)
         db.commit()
         
-        # If item was just set to preparing and robot is enabled, add to robot queue
-        # Note: Robot queue integration will be updated in a later task when robot_queue model is refactored
-        if status_changed_to_preparing:
-            from ..routers.robot import get_robot_enabled_state
-            
-            if get_robot_enabled_state():
-                # TODO: Update robot queue integration after robot_queue model is refactored to use check_id
-                pass
-        
     except SQLAlchemyError as e:
         handle_sqlalchemy_error(e).raise_exception()
     return item.first()

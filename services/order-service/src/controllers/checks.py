@@ -70,6 +70,58 @@ def read_one(db: Session, check_id: int):
     return check
 
 
+def send_to_kitchen(db: Session, check_id: int):
+    """Idempotent 'send to kitchen'.
+
+    - If check is OPEN, it will be submitted (OPEN -> SENT).
+    - If check is READY and new items were added, it will be moved back to SENT.
+    - Any PENDING check items will be promoted to PREPARING.
+
+    """
+    check = db.query(Check).filter(Check.id == check_id).first()
+    if not check:
+        raise_not_found("Check", check_id)
+
+    if check.status in [CheckStatus.PAID, CheckStatus.CLOSED]:
+        raise_validation_error(f"Cannot send items for check with status '{check.status.value}'.")
+
+    # Always update totals before sending.
+    update_check_totals(db, check_id)
+
+    now = datetime.now(timezone.utc)
+    was_open = check.status == CheckStatus.OPEN
+
+    pending_items = db.query(CheckItem).filter(
+        CheckItem.check_id == check_id,
+        CheckItem.status == CheckItemStatus.PENDING,
+    ).all()
+
+    # Submit check on first send
+    if was_open:
+        check.status = CheckStatus.SENT
+        check.submitted_at = now
+
+    # If check was READY but we are sending new items, block payment again until ready.
+    if check.status == CheckStatus.READY and pending_items:
+        check.status = CheckStatus.SENT
+
+    # Promote pending items to preparing
+    for item in pending_items:
+        item.status = CheckItemStatus.PREPARING
+
+    db.commit()
+    db.refresh(check)
+
+    # Notify restaurant-service kitchen queue (best-effort) on the first submit only
+    if was_open and check.restaurant_id:
+        try:
+            asyncio.create_task(_notify_kitchen_queue(check.restaurant_id, check_id))
+        except Exception as e:
+            logger.warning(f"Failed to notify kitchen queue for check {check_id}: {e}")
+
+    return check
+
+
 def read_by_seating(db: Session, seating_id: int):
     """Get all checks for a specific seating"""
     return db.query(Check).filter(Check.seating_id == seating_id).all()
@@ -124,6 +176,21 @@ def submit_check(db: Session, check_id: int):
             # Don't fail the check submission if kitchen notification fails
     
     return check
+
+
+async def _notify_kitchen_queue(restaurant_id: int, check_id: int):
+    """Notify restaurant-service kitchen queue (async helper)"""
+    try:
+        response = await restaurant_client.post(
+            "/kitchen/queue",
+            json={"restaurant_id": restaurant_id, "check_id": check_id}
+        )
+        logger.info(f"Kitchen queue notified for check {check_id}")
+    except Exception as e:
+        logger.error(f"Failed to notify kitchen queue: {e}")
+        # Log but don't raise - kitchen notification is non-critical
+
+
 
 
 def delete(db: Session, check_id: int):
