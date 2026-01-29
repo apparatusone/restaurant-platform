@@ -9,6 +9,7 @@ class IngredientBase(BaseModel):
     restaurant_id: int
     unit: str
     reorder_point: int
+    apriltag_id: Optional[int] = None
 
 
 class IngredientCreate(IngredientBase):
@@ -21,6 +22,7 @@ class IngredientUpdate(BaseModel):
     restaurant_id: Optional[int] = None
     unit: Optional[str] = None
     reorder_point: Optional[int] = None
+    apriltag_id: Optional[int] = None
 
 
 class Ingredient(IngredientBase):
