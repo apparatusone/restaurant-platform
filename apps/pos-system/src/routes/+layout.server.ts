@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 
-// JWT validation without external dependencies
+// JWT validation
 function isJWTExpired(token: string): boolean {
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
