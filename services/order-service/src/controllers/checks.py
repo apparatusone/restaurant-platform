@@ -14,8 +14,17 @@ from ..utils.errors import (
 from ..clients import restaurant_client, payment_client
 import asyncio
 import logging
+import redis
+import json
+import os
 
 logger = logging.getLogger(__name__)
+
+redis_client = redis.Redis(
+    host=os.getenv("REDIS_HOST", "localhost"),
+    port=int(os.getenv("REDIS_PORT", 6379)),
+    decode_responses=True
+)
 
 
 async def create(db: Session, request: CheckCreate):
@@ -118,6 +127,18 @@ def send_to_kitchen(db: Session, check_id: int):
             asyncio.create_task(_notify_kitchen_queue(check.restaurant_id, check_id))
         except Exception as e:
             logger.warning(f"Failed to notify kitchen queue for check {check_id}: {e}")
+    
+    # Publish to Redis for automation service
+    if pending_items:
+        try:
+            item_ids = [item.id for item in pending_items]
+            redis_client.publish("kitchen.orders", json.dumps({
+                "check_id": check_id,
+                "item_ids": item_ids
+            }))
+            logger.info(f"Published kitchen order event for check {check_id}")
+        except Exception as e:
+            logger.warning(f"Failed to publish kitchen order event: {e}")
 
     return check
 
