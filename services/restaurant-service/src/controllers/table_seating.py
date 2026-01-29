@@ -2,12 +2,21 @@ from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException, status
 from datetime import datetime, timezone
 from shared.repositories import BaseRepository
+from shared.utils.http_client import ResilientHttpClient
 from ..models.table_seating import TableSeating
 from ..models.table import Table
 from ..schemas.table_seating import TableSeatingCreate, TableSeatingUpdate
+import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Initialize repository
 seating_repo = BaseRepository[TableSeating, TableSeatingCreate, TableSeatingUpdate](TableSeating)
+
+# Initialize HTTP client for order-service
+ORDER_SERVICE_URL = os.getenv("ORDER_SERVICE_URL", "http://localhost:8002")
+order_service_client = ResilientHttpClient(base_url=ORDER_SERVICE_URL)
 
 
 def create(db: Session, request: TableSeatingCreate):
