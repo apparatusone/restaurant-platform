@@ -3,6 +3,7 @@
 	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { authState } from '$lib/stores/auth.svelte';
+	import { timeclockState } from '$lib/stores/timeclock.svelte';
 	import { onMount } from 'svelte';
 	
 	let { children } = $props();
@@ -25,6 +26,10 @@
 		try {
 		if (pathname === '/login') {
 			if (!authState.currentUser) return;
+			await timeclockState.refresh();
+			if (timeclockState.error) return;
+			await safeGoto(timeclockState.isClockedIn ? '/dashboard' : '/clock-in');
+			return;
 		}
 
 		if (!authState.currentUser) {
@@ -32,6 +37,13 @@
 			return;
 		}
 
+		if (pathname === '/clock-in') return;
+
+		await timeclockState.refresh();
+		if (timeclockState.error) return;
+		if (!timeclockState.isClockedIn) {
+			await safeGoto('/clock-in');
+		}
 		} finally {
 			guardInFlight = false;
 		}
