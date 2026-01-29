@@ -3,8 +3,8 @@ from typing import Optional, List
 from .orders import OrderType
 
 
-class OrderItemSubmission(BaseModel):
-    """Individual item in the order submission"""
+class CheckItemSubmission(BaseModel):
+    """Individual item in the check submission"""
     menu_item_id: int
     quantity: int
     price: float
@@ -35,8 +35,8 @@ class PaymentInfoSubmission(BaseModel):
 
 class CompleteOrderSubmission(BaseModel):
     """Complete order submission from the browser"""
-    # Order items
-    items: List[OrderItemSubmission]
+    # Check items
+    items: List[CheckItemSubmission]
     total_price: float
     item_count: int
     
@@ -54,7 +54,7 @@ class OrderSubmissionResponse(BaseModel):
     """Response after successful order submission"""
     success: bool
     message: str
-    order_id: int
+    check_id: int
     tracking_number: str
     estimated_delivery_time: Optional[str] = None
     order_status: str  # "confirmed" or "pending_resources"

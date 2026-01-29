@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 sqlalchemy
+sqlalchemy-utils==0.41.1
 pymysql
 pytest
 pytest-mock
@@ -8,3 +9,4 @@ httpx
 cryptography
 stripe
 python-dotenv
+pyjwt

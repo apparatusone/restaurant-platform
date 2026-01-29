@@ -1,36 +1,54 @@
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from fastapi import HTTPException, status
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from ..models.checks import Check, CheckStatus
-from shared.models.orders import Order
-from shared.models.order_items import OrderItem
-from ..models.table_sessions import TableSession
+from shared.models.check_items import CheckItem, CheckItemStatus
 from ..schemas.checks import CheckCreate, CheckUpdate
 from ..utils.errors import (
     raise_not_found,
     raise_validation_error,
     raise_status_transition_error
 )
+from ..clients import restaurant_client, payment_client
+import asyncio
+import logging
+import redis
+import json
+import os
+
+logger = logging.getLogger(__name__)
+
+redis_client = redis.Redis(
+    host=os.getenv("REDIS_HOST", "localhost"),
+    port=int(os.getenv("REDIS_PORT", 6379)),
+    decode_responses=True
+)
 
 
-def create(db: Session, request: CheckCreate):
-    # validate session for non-virtual checks
-    if not request.is_virtual and request.session_id:
-        session = db.query(TableSession).filter(TableSession.id == request.session_id).first()
-        if not session:
-            raise_not_found("Session", request.session_id)
-        
-        if session.closed_at:
-            raise_validation_error("Cannot create check for closed session")
-    elif not request.is_virtual and not request.session_id:
-        raise_validation_error("Non-virtual checks must have a session_id")
-    elif request.is_virtual and request.session_id:
-        raise_validation_error("Virtual checks cannot have a session_id")
+async def create(db: Session, request: CheckCreate):
+    # validate seating for non-virtual checks
+    if not request.is_virtual and request.seating_id:
+        # Call restaurant-service to validate seating
+        try:
+            response = await restaurant_client.get(f"/seatings/{request.seating_id}")
+            seating = response.json()
+            if not seating:
+                raise_not_found("Seating", request.seating_id)
+            
+            if seating.get('closed_at'):
+                raise_validation_error("Cannot create check for closed seating")
+        except Exception as e:
+            logger.error(f"Failed to validate seating: {e}")
+            raise_validation_error(f"Failed to validate seating: {str(e)}")
+    elif not request.is_virtual and not request.seating_id:
+        raise_validation_error("Non-virtual checks must have a seating_id")
+    elif request.is_virtual and request.seating_id:
+        raise_validation_error("Virtual checks cannot have a seating_id")
     
     new_check = Check(
-        session_id=request.session_id,
+        seating_id=request.seating_id,
         is_virtual=request.is_virtual,
         subtotal=request.subtotal or Decimal('0.00'),
         tax_amount=request.tax_amount or Decimal('0.00'),
@@ -45,28 +63,89 @@ def create(db: Session, request: CheckCreate):
 
 
 def read_all(db: Session):
-    """Get all checks with session info - handles both virtual and table checks"""
+    """Get all checks with seating info - handles both virtual and table checks"""
     return db.query(Check).options(
-        joinedload(Check.session),
-        joinedload(Check.order)
+        joinedload(Check.check_items)
     ).all()
 
 
 def read_one(db: Session, check_id: int):
     """Get single check with full details - works for both virtual and table checks"""
     check = db.query(Check).options(
-        joinedload(Check.session),
-        joinedload(Check.order).joinedload(Order.order_items),
-        joinedload(Check.payments)
+        joinedload(Check.check_items)
     ).filter(Check.id == check_id).first()
     if not check:
         raise_not_found("Check", check_id)
     return check
 
 
-def read_by_session(db: Session, session_id: int):
-    """Get all checks for a specific session"""
-    return db.query(Check).filter(Check.session_id == session_id).all()
+def send_to_kitchen(db: Session, check_id: int):
+    """Idempotent 'send to kitchen'.
+
+    - If check is OPEN, it will be submitted (OPEN -> SENT).
+    - If check is READY and new items were added, it will be moved back to SENT.
+    - Any PENDING check items will be promoted to PREPARING.
+
+    """
+    check = db.query(Check).filter(Check.id == check_id).first()
+    if not check:
+        raise_not_found("Check", check_id)
+
+    if check.status in [CheckStatus.PAID, CheckStatus.CLOSED]:
+        raise_validation_error(f"Cannot send items for check with status '{check.status.value}'.")
+
+    # Always update totals before sending.
+    update_check_totals(db, check_id)
+
+    now = datetime.now(timezone.utc)
+    was_open = check.status == CheckStatus.OPEN
+
+    pending_items = db.query(CheckItem).filter(
+        CheckItem.check_id == check_id,
+        CheckItem.status == CheckItemStatus.PENDING,
+    ).all()
+
+    # Submit check on first send
+    if was_open:
+        check.status = CheckStatus.SENT
+        check.submitted_at = now
+
+    # If check was READY but we are sending new items, block payment again until ready.
+    if check.status == CheckStatus.READY and pending_items:
+        check.status = CheckStatus.SENT
+
+    # Promote pending items to preparing
+    for item in pending_items:
+        item.status = CheckItemStatus.PREPARING
+
+    db.commit()
+    db.refresh(check)
+
+    # Notify restaurant-service kitchen queue (best-effort) on the first submit only
+    if was_open and check.restaurant_id:
+        try:
+            asyncio.create_task(_notify_kitchen_queue(check.restaurant_id, check_id))
+        except Exception as e:
+            logger.warning(f"Failed to notify kitchen queue for check {check_id}: {e}")
+    
+    # Publish to Redis for automation service
+    if pending_items:
+        try:
+            item_ids = [item.id for item in pending_items]
+            redis_client.publish("kitchen.orders", json.dumps({
+                "check_id": check_id,
+                "item_ids": item_ids
+            }))
+            logger.info(f"Published kitchen order event for check {check_id}")
+        except Exception as e:
+            logger.warning(f"Failed to publish kitchen order event: {e}")
+
+    return check
+
+
+def read_by_seating(db: Session, seating_id: int):
+    """Get all checks for a specific seating"""
+    return db.query(Check).filter(Check.seating_id == seating_id).all()
 
 
 def update(db: Session, check_id: int, request: CheckUpdate):
@@ -80,9 +159,9 @@ def update(db: Session, check_id: int, request: CheckUpdate):
     
     # timestamps
     if request.status == CheckStatus.SENT and not check.submitted_at:
-        check.submitted_at = datetime.utcnow()
+        check.submitted_at = datetime.now(timezone.utc)
     elif request.status == CheckStatus.PAID and not check.paid_at:
-        check.paid_at = datetime.utcnow()
+        check.paid_at = datetime.now(timezone.utc)
     
     db.commit()
     db.refresh(check)
@@ -103,35 +182,36 @@ def submit_check(db: Session, check_id: int):
     update_check_totals(db, check_id)
     
     check.status = CheckStatus.SENT
-    check.submitted_at = datetime.utcnow()
+    check.submitted_at = datetime.now(timezone.utc)
     
     db.commit()
     db.refresh(check)
+    
+    # Notify restaurant-service kitchen queue (async call)
+    # Note: This is a write operation to the kitchen queue, so we call the owner service
+    if check.restaurant_id:
+        try:
+            asyncio.create_task(_notify_kitchen_queue(check.restaurant_id, check_id))
+        except Exception as e:
+            logger.warning(f"Failed to notify kitchen queue for check {check_id}: {e}")
+            # Don't fail the check submission if kitchen notification fails
+    
     return check
 
 
-def process_payment(db: Session, check_id: int, tip_amount: Decimal = None):
-    """Process payment for check - works for both virtual and table checks"""
-    check = db.query(Check).filter(Check.id == check_id).first()
-    if not check:
-        raise_not_found("Check", check_id)
-    
-    if check.status not in [CheckStatus.SENT, CheckStatus.READY]:
-        raise_validation_error(f"Check must be sent before payment. Current status: {check.status.value}")
-    
-    # update totals to ensure accuracy
-    update_check_totals(db, check_id)
-    
-    if tip_amount is not None:
-        check.tip_amount = tip_amount
-        check.total_amount = check.subtotal + check.tax_amount + check.tip_amount
-    
-    check.status = CheckStatus.PAID
-    check.paid_at = datetime.utcnow()
-    
-    db.commit()
-    db.refresh(check)
-    return check
+async def _notify_kitchen_queue(restaurant_id: int, check_id: int):
+    """Notify restaurant-service kitchen queue (async helper)"""
+    try:
+        response = await restaurant_client.post(
+            "/kitchen/queue",
+            json={"restaurant_id": restaurant_id, "check_id": check_id}
+        )
+        logger.info(f"Kitchen queue notified for check {check_id}")
+    except Exception as e:
+        logger.error(f"Failed to notify kitchen queue: {e}")
+        # Log but don't raise - kitchen notification is non-critical
+
+
 
 
 def delete(db: Session, check_id: int):
@@ -142,14 +222,10 @@ def delete(db: Session, check_id: int):
     if check.status in [CheckStatus.SENT, CheckStatus.READY, CheckStatus.PAID, CheckStatus.CLOSED]:
         raise_validation_error("Cannot delete submitted or paid check")
 
-    # Only allow delete if no order items
-    from shared.models.order_items import OrderItem
-    from shared.models.orders import Order
-    
-    # Find all orders for this check and count their items
-    item_count = db.query(OrderItem).join(Order).filter(Order.check_id == check_id).count()
+    # Only allow delete if no check items
+    item_count = db.query(CheckItem).filter(CheckItem.check_id == check_id).count()
     if item_count > 0:
-        raise_validation_error("Cannot delete check with order items")
+        raise_validation_error("Cannot delete check with check items")
 
     db.delete(check)
     db.commit()
@@ -159,8 +235,7 @@ def delete(db: Session, check_id: int):
 def get_open_checks(db: Session, include_virtual: bool = True, include_table: bool = True):
     """Get all open checks - unified for virtual and table checks"""
     query = db.query(Check).filter(Check.status == CheckStatus.OPEN).options(
-        joinedload(Check.session),
-        joinedload(Check.order)
+        joinedload(Check.check_items)
     )
     
     if include_virtual and not include_table:
@@ -176,8 +251,7 @@ def get_pending_checks(db: Session, include_virtual: bool = True, include_table:
     query = db.query(Check).filter(
         Check.status.in_([CheckStatus.SENT, CheckStatus.READY])
     ).options(
-        joinedload(Check.session),
-        joinedload(Check.order)
+        joinedload(Check.check_items)
     )
     
     if include_virtual and not include_table:
@@ -191,7 +265,7 @@ def get_pending_checks(db: Session, include_virtual: bool = True, include_table:
 def get_virtual_checks(db: Session, status: CheckStatus = None):
     """Get virtual checks with optional status filter"""
     query = db.query(Check).filter(Check.is_virtual == True).options(
-        joinedload(Check.order).joinedload(Order.order_items)
+        joinedload(Check.check_items)
     )
     
     if status:
@@ -203,8 +277,7 @@ def get_virtual_checks(db: Session, status: CheckStatus = None):
 def get_table_checks(db: Session, status: CheckStatus = None):
     """Get a table's checks with optional status filter"""
     query = db.query(Check).filter(Check.is_virtual == False).options(
-        joinedload(Check.session),
-        joinedload(Check.order).joinedload(Order.order_items)
+        joinedload(Check.check_items)
     )
     
     if status:
@@ -214,10 +287,10 @@ def get_table_checks(db: Session, status: CheckStatus = None):
 
 
 def calculate_check_total(db: Session, check_id: int):
-    """Calculate check total from associated orders - works for both virtual and table checks"""
-    # get sum of all order details for orders in this check
-    subtotal = db.query(func.sum(OrderItem.line_total)).join(Order).filter(
-        Order.check_id == check_id
+    """Calculate check total from check items directly - works for both virtual and table checks"""
+    # get sum of all check items for this check
+    subtotal = db.query(func.sum(CheckItem.total_price)).filter(
+        CheckItem.check_id == check_id
     ).scalar() or Decimal('0.00')
     
     # for now, use simple tax calculation (8.5%)
@@ -250,11 +323,10 @@ def update_check_totals(db: Session, check_id: int):
     return check
 
 
-def get_checks_with_orders(db: Session, include_virtual: bool = True, include_table: bool = True):
-    """Get checks with their associated order"""
+def get_checks_with_items(db: Session, include_virtual: bool = True, include_table: bool = True):
+    """Get checks with their associated check items"""
     query = db.query(Check).options(
-        joinedload(Check.order).joinedload(Order.order_items),
-        joinedload(Check.session)
+        joinedload(Check.check_items)
     )
     
     if include_virtual and not include_table:
@@ -266,29 +338,35 @@ def get_checks_with_orders(db: Session, include_virtual: bool = True, include_ta
     return query.all()
 
 
-def get_check_summary(db: Session, check_id: int):
+async def get_check_summary(db: Session, check_id: int):
     """Get comprehensive check summary - works for both virtual and table checks"""
     check = db.query(Check).options(
-        joinedload(Check.order).joinedload(Order.order_items).joinedload(OrderItem.menu_item),
-        joinedload(Check.session),
-        joinedload(Check.payments)
+        joinedload(Check.check_items).joinedload(CheckItem.menu_item)
     ).filter(Check.id == check_id).first()
     
     if not check:
         raise_not_found("Check", check_id)
     
-    # calculate current totals from orders
+    # calculate current totals from check items
     calculated_totals = calculate_check_total(db, check_id)
     
-    # calculate payments made
-    total_payments = sum(payment.amount for payment in check.payments) if check.payments else Decimal('0.00')
+    # Fetch payments from payment-service (read operation)
+    total_payments = Decimal('0.00')
+    try:
+        response = await payment_client.get(f"/payments/check/{check_id}")
+        if response.status_code == 200:
+            payments = response.json()
+            total_payments = sum(Decimal(str(p.get('amount', 0))) for p in payments)
+    except Exception as e:
+        logger.warning(f"Failed to fetch payments from payment-service: {e}")
+        # Continue without payment data
     
     return {
         'check': check,
         'calculated_totals': calculated_totals,
         'total_payments': total_payments,
         'balance_due': (calculated_totals['total_amount'] + (check.tip_amount or Decimal('0.00'))) - total_payments,
-        'order_count': 1 if check.order else 0,
+        'item_count': len(check.check_items) if check.check_items else 0,
         'is_virtual': check.is_virtual
     }
 
@@ -322,9 +400,9 @@ def update_check_status(db: Session, check_id: int, new_status: CheckStatus):
     
     # set timestamps based on status
     if new_status == CheckStatus.SENT and not check.submitted_at:
-        check.submitted_at = datetime.utcnow()
+        check.submitted_at = datetime.now(timezone.utc)
     elif new_status == CheckStatus.PAID and not check.paid_at:
-        check.paid_at = datetime.utcnow()
+        check.paid_at = datetime.now(timezone.utc)
     
     check.status = new_status
     db.commit()
@@ -332,24 +410,21 @@ def update_check_status(db: Session, check_id: int, new_status: CheckStatus):
     return check
 
 
-def get_checks_by_order_type(db: Session, order_type: str = None):
-    """Get checks filtered by associated order types - unified querying"""
+def get_checks_by_type(db: Session, is_virtual: bool = None):
+    """Get checks filtered by type (virtual or table)"""
     query = db.query(Check).options(
-        joinedload(Check.order),
-        joinedload(Check.session)
+        joinedload(Check.check_items)
     )
     
-    if order_type:
-        from shared.models.orders import OrderType
-        query = query.join(Order).filter(Order.order_type == OrderType(order_type))
+    if is_virtual is not None:
+        query = query.filter(Check.is_virtual == is_virtual)
     
     return query.all()
 
 
-def create_payment_for_check(db: Session, check_id: int, request):
-    """Create payment for a check with business rule validation"""
-    from ..models.payment_method import Payment, PaymentType, PaymentStatus
-    from shared.models.order_items import OrderItem, OrderItemStatus
+async def create_payment_for_check(db: Session, check_id: int, request):
+    """Create payment for a check with business rule validation - delegates to payment-service"""
+    from shared.models.check_items import CheckItemStatus
     
     check = db.query(Check).filter(Check.id == check_id).first()
     if not check:
@@ -361,13 +436,13 @@ def create_payment_for_check(db: Session, check_id: int, request):
         if check.status != CheckStatus.READY:
             raise_validation_error(f"Cannot process payment for check with status '{check.status.value}'. Check must be ready.")
         
-        # Verify all order items are actually ready for dine-in
-        all_items = db.query(OrderItem).join(Order).filter(
-            Order.check_id == check_id
+        # Verify all check items are actually ready for dine-in
+        all_items = db.query(CheckItem).filter(
+            CheckItem.check_id == check_id
         ).all()
         
         if all_items:
-            not_ready_items = [item for item in all_items if item.status != OrderItemStatus.READY]
+            not_ready_items = [item for item in all_items if item.status != CheckItemStatus.READY]
             if not_ready_items:
                 raise_validation_error(
                     f"Cannot process payment. {len(not_ready_items)} item(s) are not ready yet. "
@@ -382,43 +457,37 @@ def create_payment_for_check(db: Session, check_id: int, request):
     if request.amount <= 0:
         raise_validation_error("Payment amount must be greater than 0")
     
-    # check if it's already been paid
-    existing_payments = db.query(Payment).filter(
-        Payment.check_id == check_id,
-        Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-    ).all()
-    
-    total_existing = sum(payment.amount for payment in existing_payments)
-    
-    remaining_balance = check.total_amount - total_existing
-    if request.amount > remaining_balance:
-        raise_validation_error(
-            f"Payment amount ({request.amount}) exceeds remaining balance ({remaining_balance}). "
-            f"Check total: {check.total_amount}, Already paid: {total_existing}, "
-            f"Existing payments: {len(existing_payments)}"
+    # Call payment-service to create payment (write operation)
+    # payment-service owns the Payment table, so we must call it for writes
+    try:
+        response = await payment_client.post(
+            "/payments",
+            json={
+                "check_id": check_id,
+                "amount": float(request.amount),
+                "payment_type": request.payment_type.value if hasattr(request.payment_type, 'value') else request.payment_type,
+                "card_number": request.card_number
+            }
         )
+        
+        if response.status_code == 201 or response.status_code == 200:
+            payment_data = response.json()
+            logger.info(f"Payment created via payment-service: {payment_data}")
+            
+            # payment-service will notify us back to update check status
+            # For now, we can update the check status here if payment is completed
+            # Note: In production, payment-service should call us back via webhook
+            
+            return check
+        else:
+            raise_validation_error(f"Payment service returned error: {response.status_code}")
     
-    payment_status = PaymentStatus.COMPLETED if request.payment_type == PaymentType.CASH else PaymentStatus.COMPLETED
-    
-    new_payment = Payment(
-        check_id=check_id,
-        amount=request.amount,
-        payment_type=request.payment_type,
-        status=payment_status,
-        card_number=request.card_number
-    )
-    
-    db.add(new_payment)
-    
-    # calc remaining
-    total_payments_after = total_existing + request.amount
-    if total_payments_after >= check.total_amount:
-        check.status = CheckStatus.PAID
-        check.paid_at = datetime.utcnow()
-    
-    db.commit()
-    db.refresh(check)
-    return check
+    except Exception as e:
+        logger.error(f"Failed to create payment via payment-service: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Payment service unavailable: {str(e)}"
+        )
 
 
 def close_check(db: Session, check_id: int):
@@ -426,16 +495,47 @@ def close_check(db: Session, check_id: int):
     check = db.query(Check).filter(Check.id == check_id).first()
     if not check:
         raise_not_found("Check", check_id)
-    
-    # onlya allow closing paid checks
-    if check.status != CheckStatus.PAID:
-        raise_validation_error(f"Cannot close check with status '{check.status.value}'. Check must be paid before closing.")
-    
-    check.status = CheckStatus.CLOSED
-    check.updated_at = datetime.utcnow()
+
+    if check.status == CheckStatus.PAID:
+        check.status = CheckStatus.CLOSED
+        check.closed_at = datetime.now(timezone.utc)
+        check.updated_at = datetime.now(timezone.utc)
+    elif check.status == CheckStatus.OPEN:
+        item_count = db.query(CheckItem).filter(CheckItem.check_id == check_id).count()
+        if item_count > 0:
+            raise_validation_error(
+                f"Cannot close check with status '{check.status.value}'. Check must be paid before closing."
+            )
+        check.status = CheckStatus.CLOSED
+        check.closed_at = datetime.now(timezone.utc)
+        check.updated_at = datetime.now(timezone.utc)
+    else:
+        raise_validation_error(
+            f"Cannot close check with status '{check.status.value}'. Check must be paid before closing."
+        )
     
     db.commit()
     db.refresh(check)
+    return check
+
+
+def mark_check_paid_by_payment_service(db: Session, check_id: int, payment_id: int):
+    """
+    Called by payment-service after successful payment completion
+    This is the callback endpoint for inter-service communication
+    """
+    check = db.query(Check).filter(Check.id == check_id).first()
+    if not check:
+        raise_not_found("Check", check_id)
+    
+    # Update check status to paid
+    check.status = CheckStatus.PAID
+    check.paid_at = datetime.now(timezone.utc)
+    
+    db.commit()
+    db.refresh(check)
+    
+    logger.info(f"Check {check_id} marked as paid by payment-service (payment_id: {payment_id})")
     return check
 
 

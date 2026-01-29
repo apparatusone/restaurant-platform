@@ -17,14 +17,11 @@ class MenuItem(Base):
     description   = Column(String(255), nullable=True)
     price         = Column(Numeric(10, 2), nullable=False)  # price in dollars and cents
     calories      = Column(Integer, nullable=False)
-    food_category = Column(Enum(FoodCategory), nullable=False, index=True, default=FoodCategory.REGULAR) # vegetarian, vegan, etc
+    food_category = Column(Enum(FoodCategory, values_callable=lambda obj: [e.value for e in obj]), nullable=False, index=True, default=FoodCategory.REGULAR) # vegetarian, vegan, etc
 
-    # order_items is guaranteed to exist (in shared)
-    order_items = relationship(
-        "OrderItem",
+    # check_items is guaranteed to exist (in shared)
+    check_items = relationship(
+        "CheckItem",
         back_populates="menu_item",
         cascade="all, delete-orphan"
     )
-    
-    # Note: menu_item_ingredients, reviews relationships are added dynamically
-    # in order-service's model_loader to avoid import issues in kitchen-service

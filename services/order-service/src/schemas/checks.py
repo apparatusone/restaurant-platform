@@ -14,8 +14,8 @@ class CheckStatus(str, Enum):
 
 
 class CheckBase(BaseModel):
-    session_id: Optional[int] = Field(None, description="FK -> table_sessions.id (nullable for virtual checks)")
-    is_virtual: bool = Field(False, description="True for online orders without table session")
+    seating_id: Optional[int] = Field(None, description="FK -> table_seatings.id (nullable for virtual checks)")
+    is_virtual: bool = Field(False, description="True for online orders without table seating")
     subtotal: Optional[Decimal] = Field(Decimal('0.00'), ge=0, description="Subtotal amount")
     tax_amount: Optional[Decimal] = Field(Decimal('0.00'), ge=0, description="Tax amount")
     tip_amount: Optional[Decimal] = Field(Decimal('0.00'), ge=0, description="Tip amount")
@@ -29,8 +29,8 @@ class CheckCreate(CheckBase):
 
 
 class CheckUpdate(BaseModel):
-    session_id: Optional[int] = Field(None, description="FK -> table_sessions.id (nullable for virtual checks)")
-    is_virtual: Optional[bool] = Field(None, description="True for online orders without table session")
+    seating_id: Optional[int] = Field(None, description="FK -> table_seatings.id (nullable for virtual checks)")
+    is_virtual: Optional[bool] = Field(None, description="True for online orders without table seating")
     status: Optional[CheckStatus] = None
     subtotal: Optional[Decimal] = Field(None, ge=0)
     tax_amount: Optional[Decimal] = Field(None, ge=0)

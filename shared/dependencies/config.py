@@ -9,3 +9,6 @@ class conf:
     db_password = os.getenv("DB_PASSWORD", "rootroot")
     app_host = os.getenv("APP_HOST", "localhost")
     app_port = int(os.getenv("APP_PORT", "8000"))
+    redis_host = os.getenv("REDIS_HOST", "localhost")
+    redis_port = int(os.getenv("REDIS_PORT", "6379"))
+    ros2_robot_url = os.getenv("ROS2_ROBOT_URL", "http://10.0.0.28:5001")

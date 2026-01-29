@@ -6,7 +6,7 @@ from shared.dependencies.database import get_db
 
 router = APIRouter(
     tags=['Menu Items'],
-    prefix="/menu_items",
+    prefix="/menu-items",
 )
 
 

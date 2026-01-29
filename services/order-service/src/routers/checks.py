@@ -1,21 +1,26 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from decimal import Decimal
+from pydantic import BaseModel
+from typing import Optional
 from shared.dependencies.database import get_db
 from ..schemas import checks as schema
-from shared.schemas import orders as order_schema
-from shared.schemas import order_items as order_item_schema
-from ..schemas import payment_method as payment_schema
+from shared.schemas import check_items as order_item_schema
 from ..controllers import checks as controller
-from ..controllers import orders as order_controller
-from ..controllers import order_items as order_item_controller
+from ..controllers import check_items as order_item_controller
 
 router = APIRouter(prefix="/checks", tags=["checks"])
 
 
+class CheckPaymentCreate(BaseModel):
+    amount: Decimal
+    payment_type: str = "cash"
+    card_number: Optional[str] = None
+
+
 @router.post("/", response_model=schema.Check)
-def create_check(request: schema.CheckCreate, db: Session = Depends(get_db)):
-    return controller.create(db=db, request=request)
+async def create_check(request: schema.CheckCreate, db: Session = Depends(get_db)):
+    return await controller.create(db=db, request=request)
 
 
 @router.get("/", response_model=list[schema.Check])
@@ -38,9 +43,9 @@ def get_check(check_id: int, db: Session = Depends(get_db)):
     return controller.read_one(db, check_id=check_id)
 
 
-@router.get("/session/{session_id}", response_model=list[schema.Check])
-def get_checks_by_session(session_id: int, db: Session = Depends(get_db)):
-    return controller.read_by_session(db, session_id=session_id)
+@router.get("/seating/{seating_id}", response_model=list[schema.Check])
+def get_checks_by_seating(seating_id: int, db: Session = Depends(get_db)):
+    return controller.read_by_seating(db, seating_id=seating_id)
 
 
 @router.put("/{check_id}", response_model=schema.Check)
@@ -53,9 +58,10 @@ def submit_check(check_id: int, db: Session = Depends(get_db)):
     return controller.submit_check(db=db, check_id=check_id)
 
 
-@router.post("/{check_id}/payment", response_model=schema.Check)
-def process_payment(check_id: int, tip_amount: Decimal = None, db: Session = Depends(get_db)):
-    return controller.process_payment(db=db, check_id=check_id, tip_amount=tip_amount)
+@router.post("/{check_id}/send", response_model=schema.Check)
+def send_to_kitchen(check_id: int, db: Session = Depends(get_db)):
+    """Submit if needed and promote pending items to preparing."""
+    return controller.send_to_kitchen(db=db, check_id=check_id)
 
 
 @router.delete("/{check_id}")
@@ -63,26 +69,9 @@ def delete_check(check_id: int, db: Session = Depends(get_db)):
     return controller.delete(db=db, check_id=check_id)
 
 
-# Order endpoints within checks
-@router.post("/{check_id}/orders", response_model=order_schema.Order)
-def create_order_for_check(check_id: int, request: order_schema.OrderCreate, db: Session = Depends(get_db)):
-    # Ensure the order is created for this check
-    request.check_id = check_id
-    return order_controller.create(db=db, request=request)
-
-
-@router.get("/{check_id}/orders", response_model=list[order_schema.Order])
-def get_orders_for_check(check_id: int, db: Session = Depends(get_db)):
-    return order_controller.read_by_check(db=db, check_id=check_id)
-
-
-@router.get("/{check_id}/orders/{order_id}", response_model=order_schema.Order)
-def get_order_in_check(check_id: int, order_id: int, db: Session = Depends(get_db)):
-    return order_controller.read_one_in_check(db=db, check_id=check_id, order_id=order_id)
-
-
-@router.post("/{check_id}/items", response_model=order_item_schema.OrderItem)
-def add_item_to_check(check_id: int, request: order_item_schema.CheckItemCreate, db: Session = Depends(get_db)):
+# CheckItem endpoints within checks
+@router.post("/{check_id}/items", response_model=order_item_schema.CheckItem)
+def add_item_to_check(check_id: int, request: order_item_schema.CheckItemCreateDirect, db: Session = Depends(get_db)):
     """Add a menu item directly to a check"""
     return order_item_controller.add_item_to_check(db=db, check_id=check_id, request=request)
 
@@ -94,13 +83,26 @@ def recalculate_check_totals(check_id: int, db: Session = Depends(get_db)):
     return controller.update_check_totals(db=db, check_id=check_id)
 
 
-@router.post("/{check_id}/payments", response_model=schema.Check)
-def create_payment_for_check(check_id: int, request: payment_schema.CheckPaymentCreate, db: Session = Depends(get_db)):
-    """Create payment for a check"""
-    return controller.create_payment_for_check(db=db, check_id=check_id, request=request)
-
-
 @router.put("/{check_id}/close", response_model=schema.Check)
 def close_check(check_id: int, db: Session = Depends(get_db)):
     """Close a paid check"""
     return controller.close_check(db=db, check_id=check_id)
+
+
+@router.post("/{check_id}/payments", response_model=schema.Check)
+async def create_payment_for_check(
+    check_id: int,
+    request: CheckPaymentCreate,
+    db: Session = Depends(get_db),
+):
+    return await controller.create_payment_for_check(
+        db=db,
+        check_id=check_id,
+        request=request,
+    )
+
+
+@router.put("/{check_id}/mark-paid", response_model=schema.Check)
+def mark_check_paid(check_id: int, payment_id: int, db: Session = Depends(get_db)):
+    """Mark check as paid - called by payment-service after successful payment"""
+    return controller.mark_check_paid_by_payment_service(db=db, check_id=check_id, payment_id=payment_id)

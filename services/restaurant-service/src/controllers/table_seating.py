@@ -1,0 +1,122 @@
+from sqlalchemy.orm import Session, joinedload
+from fastapi import HTTPException, status
+from datetime import datetime, timezone
+from shared.repositories import BaseRepository
+from shared.utils.http_client import ResilientHttpClient
+from ..models.table_seating import TableSeating
+from ..models.table import Table
+from ..schemas.table_seating import TableSeatingCreate, TableSeatingUpdate
+import os
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Initialize repository
+seating_repo = BaseRepository[TableSeating, TableSeatingCreate, TableSeatingUpdate](TableSeating)
+
+# Initialize HTTP client for order-service
+ORDER_SERVICE_URL = os.getenv("ORDER_SERVICE_URL", "http://localhost:8002")
+order_service_client = ResilientHttpClient(base_url=ORDER_SERVICE_URL)
+
+
+def create(db: Session, request: TableSeatingCreate):
+    """Create table seating"""
+    # Validate table exists
+    table = db.query(Table).filter(Table.id == request.table_id).first()
+    if not table:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Table not found: {request.table_id}"
+        )
+    
+    # Check if table is already occupied
+    active_session = db.query(TableSeating).filter(
+        TableSeating.table_id == request.table_id,
+        TableSeating.closed_at.is_(None)
+    ).first()
+    
+    if active_session:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Table {table.code} is already occupied"
+        )
+    
+    # Note: Server validation will be handled via staff-service in the future
+    # For now, we accept assigned_server_id without validation
+    
+    return seating_repo.create(db, request)
+
+
+def read_all(db: Session):
+    """Get all sessions"""
+    return db.query(TableSeating).all()
+
+
+def read_active_sessions(db: Session):
+    """Get only active (unclosed) sessions"""
+    return db.query(TableSeating).filter(
+        TableSeating.closed_at.is_(None)
+    ).all()
+
+
+def read_one(db: Session, seating_id: int):
+    """Get single seating"""
+    seating = db.query(TableSeating).filter(TableSeating.id == seating_id).first()
+    
+    if not seating:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Seating with id {seating_id} not found"
+        )
+    return seating
+
+
+def update(db: Session, seating_id: int, request: TableSeatingUpdate):
+    """Update seating"""
+    seating = seating_repo.get_or_404(db, seating_id)
+    
+    # Note: Server validation will be handled via staff-service in the future
+    # For now, we accept assigned_server_id without validation
+    
+    return seating_repo.update(db, seating_id, request)
+
+
+async def close_seating(db: Session, seating_id: int):
+    """Close a seating and free up the table"""
+    seating = seating_repo.get_or_404(db, seating_id)
+    
+    if seating.closed_at:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Seating is already closed"
+        )
+    
+    # Validate all checks for this seating are paid
+    try:
+        response = await order_service_client.get(f"/checks/seating/{seating_id}")
+        checks = response.json()
+        
+        unpaid_checks = [
+            check for check in checks 
+            if check.get('status') not in ['paid', 'closed']
+        ]
+        
+        if unpaid_checks:
+            unpaid_ids = [check['id'] for check in unpaid_checks]
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot close table with unpaid checks: {unpaid_ids}"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to validate checks for seating {seating_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to verify payment status. Please try again."
+        )
+    
+    seating.closed_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(seating)
+    return seating

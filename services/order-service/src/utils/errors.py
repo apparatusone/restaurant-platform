@@ -1,7 +1,7 @@
 """
 Standardized error handling utilities for the API
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
@@ -27,7 +27,7 @@ class APIError:
         error_dict = {
             "detail": self.detail,
             "error_code": self.error_code,
-            "timestamp": datetime.utcnow().isoformat() + "Z"
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z"
         }
         error_dict.update(self.extra_data)
         return error_dict
