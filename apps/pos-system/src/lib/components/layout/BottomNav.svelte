@@ -1,5 +1,6 @@
 <script lang="ts">
     import {
+        CartSolid,
         ReceiptSolid,
         TableColumnSolid,
     } from "flowbite-svelte-icons";
@@ -21,6 +22,7 @@
         { id: "tables", label: "Tables", icon: ReceiptSolid },
         { id: "floor", label: "Floor", icon: TableColumnSolid },
         { id: "kitchen", label: "Kitchen", icon: FireSolid },
+        { id: "inventory", label: "Inventory", icon: CartSolid },
     ];
 
     const sizingClass = "min-h-[70px] md:p-4 md:min-h-[80px]";
