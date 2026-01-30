@@ -49,3 +49,37 @@ export interface Staff {
     last_login?: string;
 }
 
+export interface Check {
+    id: number;
+    seating_id?: number;
+    is_virtual: boolean;
+    status: 'open' | 'sent' | 'ready' | 'paid' | 'closed';
+    subtotal: number;
+    tax_amount: number;
+    tip_amount: number;
+    total_amount: number;
+    created_at: string;
+    updated_at: string;
+    submitted_at?: string;
+    paid_at?: string;
+}
+
+export interface CheckItem {
+    id: number;
+    check_id: number;
+    menu_item_id: number;
+    quantity: number;
+    unit_price: number;
+    total_price: number;
+    special_instructions?: string;
+    status: 'pending' | 'preparing' | 'ready' | 'served';
+    created_at: string;
+    updated_at: string;
+    menu_item?: MenuItem;
+}
+
+export interface Ticket {
+    check: Check;
+    items: CheckItem[];
+}
+

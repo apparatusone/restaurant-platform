@@ -1,5 +1,6 @@
 <script lang="ts">
     import {
+        ReceiptSolid,
         TableColumnSolid,
     } from "flowbite-svelte-icons";
 
@@ -17,6 +18,7 @@
     }: Props = $props();
 
     const sections = [
+        { id: "tables", label: "Tables", icon: ReceiptSolid },
         { id: "floor", label: "Floor", icon: TableColumnSolid },
     ];
 

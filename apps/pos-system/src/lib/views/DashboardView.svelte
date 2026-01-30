@@ -11,6 +11,10 @@
 
     async function loadView(key: string): Promise<Component<any> | null> {
         switch (key) {
+            case 'tables':
+                return (await import('$lib/components/domain/tables/TableSection.svelte')).default;
+            case 'floor':
+                return (await import('$lib/components/domain/floor/Floor.svelte')).default;
             default:
                 return null;
         }

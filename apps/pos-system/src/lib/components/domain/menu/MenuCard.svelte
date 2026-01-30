@@ -42,7 +42,7 @@
         }
 
         try {
-            await checkStore.addOrderItem({
+            await checkStore.addCheckItem({
                 check_id: currentCheck.id,
                 menu_item_id: item.id,
                 quantity: 1
