@@ -2,11 +2,93 @@
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
 
-@plugin 'flowbite/plugin';
-
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
+  --color-pacific-blue-50: #eef5f7;
+  --color-pacific-blue-100: #ddeaee;
+  --color-pacific-blue-200: #bbd6dd;
+  --color-pacific-blue-300: #98c1cd;
+  --color-pacific-blue-400: #76adbc;
+  --color-pacific-blue-500: #5498ab;
+  --color-pacific-blue-600: #437a89;
+  --color-pacific-blue-700: #325b67;
+  --color-pacific-blue-800: #223d44;
+  --color-pacific-blue-900: #111e22;
+  --color-pacific-blue-950: #0c1518;
+
+  --color-blue-50: var(--color-pacific-blue-50);
+  --color-blue-100: var(--color-pacific-blue-100);
+  --color-blue-200: var(--color-pacific-blue-200);
+  --color-blue-300: var(--color-pacific-blue-300);
+  --color-blue-400: var(--color-pacific-blue-400);
+  --color-blue-500: var(--color-pacific-blue-500);
+  --color-blue-600: var(--color-pacific-blue-600);
+  --color-blue-700: var(--color-pacific-blue-700);
+  --color-blue-800: var(--color-pacific-blue-800);
+  --color-blue-900: var(--color-pacific-blue-900);
+  --color-blue-950: var(--color-pacific-blue-950);
+
+  --color-indigo-50: var(--color-pacific-blue-50);
+  --color-indigo-100: var(--color-pacific-blue-100);
+  --color-indigo-200: var(--color-pacific-blue-200);
+  --color-indigo-300: var(--color-pacific-blue-300);
+  --color-indigo-400: var(--color-pacific-blue-400);
+  --color-indigo-500: var(--color-pacific-blue-500);
+  --color-indigo-600: var(--color-pacific-blue-600);
+  --color-indigo-700: var(--color-pacific-blue-700);
+  --color-indigo-800: var(--color-pacific-blue-800);
+  --color-indigo-900: var(--color-pacific-blue-900);
+  --color-indigo-950: var(--color-pacific-blue-950);
+
+  --color-red-500: #ff383c;
+  --color-red-50: color-mix(in oklab, white 95%, var(--color-red-500));
+  --color-red-100: color-mix(in oklab, white 90%, var(--color-red-500));
+  --color-red-200: color-mix(in oklab, white 80%, var(--color-red-500));
+  --color-red-300: color-mix(in oklab, white 70%, var(--color-red-500));
+  --color-red-400: color-mix(in oklab, white 55%, var(--color-red-500));
+  --color-red-600: color-mix(in oklab, black 15%, var(--color-red-500));
+  --color-red-700: color-mix(in oklab, black 30%, var(--color-red-500));
+  --color-red-800: color-mix(in oklab, black 45%, var(--color-red-500));
+  --color-red-900: color-mix(in oklab, black 60%, var(--color-red-500));
+  --color-red-950: color-mix(in oklab, black 75%, var(--color-red-500));
+
+  --color-orange-500: #ff8d28;
+  --color-orange-50: color-mix(in oklab, white 95%, var(--color-orange-500));
+  --color-orange-100: color-mix(in oklab, white 90%, var(--color-orange-500));
+  --color-orange-200: color-mix(in oklab, white 80%, var(--color-orange-500));
+  --color-orange-300: color-mix(in oklab, white 70%, var(--color-orange-500));
+  --color-orange-400: color-mix(in oklab, white 55%, var(--color-orange-500));
+  --color-orange-600: color-mix(in oklab, black 15%, var(--color-orange-500));
+  --color-orange-700: color-mix(in oklab, black 30%, var(--color-orange-500));
+  --color-orange-800: color-mix(in oklab, black 45%, var(--color-orange-500));
+  --color-orange-900: color-mix(in oklab, black 60%, var(--color-orange-500));
+  --color-orange-950: color-mix(in oklab, black 75%, var(--color-orange-500));
+
+  --color-green-500: #34c759;
+  --color-green-50: color-mix(in oklab, white 95%, var(--color-green-500));
+  --color-green-100: color-mix(in oklab, white 90%, var(--color-green-500));
+  --color-green-200: color-mix(in oklab, white 80%, var(--color-green-500));
+  --color-green-300: color-mix(in oklab, white 70%, var(--color-green-500));
+  --color-green-400: color-mix(in oklab, white 55%, var(--color-green-500));
+  --color-green-600: color-mix(in oklab, black 15%, var(--color-green-500));
+  --color-green-700: color-mix(in oklab, black 30%, var(--color-green-500));
+  --color-green-800: color-mix(in oklab, black 45%, var(--color-green-500));
+  --color-green-900: color-mix(in oklab, black 60%, var(--color-green-500));
+  --color-green-950: color-mix(in oklab, black 75%, var(--color-green-500));
+
+  --color-yellow-500: #ffd600;
+  --color-yellow-50: color-mix(in oklab, white 95%, var(--color-yellow-500));
+  --color-yellow-100: color-mix(in oklab, white 90%, var(--color-yellow-500));
+  --color-yellow-200: color-mix(in oklab, white 80%, var(--color-yellow-500));
+  --color-yellow-300: color-mix(in oklab, white 70%, var(--color-yellow-500));
+  --color-yellow-400: color-mix(in oklab, white 55%, var(--color-yellow-500));
+  --color-yellow-600: color-mix(in oklab, black 15%, var(--color-yellow-500));
+  --color-yellow-700: color-mix(in oklab, black 30%, var(--color-yellow-500));
+  --color-yellow-800: color-mix(in oklab, black 45%, var(--color-yellow-500));
+  --color-yellow-900: color-mix(in oklab, black 60%, var(--color-yellow-500));
+  --color-yellow-950: color-mix(in oklab, black 75%, var(--color-yellow-500));
+
   --color-primary-50: #fff5f2;
   --color-primary-100: #fff1ee;
   --color-primary-200: #ffe4de;
@@ -18,16 +100,17 @@
   --color-primary-800: #cc4522;
   --color-primary-900: #a5371b;
 
-  --color-secondary-50: #f0f9ff;
-  --color-secondary-100: #e0f2fe;
-  --color-secondary-200: #bae6fd;
-  --color-secondary-300: #7dd3fc;
-  --color-secondary-400: #38bdf8;
-  --color-secondary-500: #0ea5e9;
-  --color-secondary-600: #0284c7;
-  --color-secondary-700: #0369a1;
-  --color-secondary-800: #075985;
-  --color-secondary-900: #0c4a6e;
+  --color-secondary-50: var(--color-pacific-blue-50);
+  --color-secondary-100: var(--color-pacific-blue-100);
+  --color-secondary-200: var(--color-pacific-blue-200);
+  --color-secondary-300: var(--color-pacific-blue-300);
+  --color-secondary-400: var(--color-pacific-blue-400);
+  --color-secondary-500: var(--color-pacific-blue-500);
+  --color-secondary-600: var(--color-pacific-blue-600);
+  --color-secondary-700: var(--color-pacific-blue-700);
+  --color-secondary-800: var(--color-pacific-blue-800);
+  --color-secondary-900: var(--color-pacific-blue-900);
+  --color-secondary-950: var(--color-pacific-blue-950);
 }
 
 @source "../node_modules/flowbite-svelte/dist";
