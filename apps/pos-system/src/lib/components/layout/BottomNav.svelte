@@ -20,6 +20,7 @@
     const sections = [
         { id: "tables", label: "Tables", icon: ReceiptSolid },
         { id: "floor", label: "Floor", icon: TableColumnSolid },
+        { id: "kitchen", label: "Kitchen", icon: FireSolid },
     ];
 
     const sizingClass = "min-h-[70px] md:p-4 md:min-h-[80px]";

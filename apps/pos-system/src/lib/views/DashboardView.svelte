@@ -15,6 +15,8 @@
                 return (await import('$lib/components/domain/tables/TableSection.svelte')).default;
             case 'floor':
                 return (await import('$lib/components/domain/floor/Floor.svelte')).default;
+            case 'kitchen':
+                return (await import('$lib/components/domain/kitchen/Kitchen.svelte')).default;
             default:
                 return null;
         }
@@ -43,6 +45,11 @@
                 <div class="bg-red-50 text-red-700 p-4 rounded">Failed to load section: {String(err)}</div>
             {/await}
         </section>
+        <BottomNav
+            fixed={false}
+            activeSection={navigationStore.activeSection}
+            onSectionChange={(section) => navigationStore.setActiveSection(section)}
+        />
     {:else}
         <div class="p-8 text-center text-gray-500">No user loaded</div>
     {/if}
