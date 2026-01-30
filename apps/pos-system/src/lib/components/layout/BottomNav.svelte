@@ -3,6 +3,7 @@
         CartSolid,
         ReceiptSolid,
         TableColumnSolid,
+        CreditCardSolid,
     } from "flowbite-svelte-icons";
 
     interface Props {
@@ -23,6 +24,7 @@
         { id: "floor", label: "Floor", icon: TableColumnSolid },
         { id: "kitchen", label: "Kitchen", icon: FireSolid },
         { id: "inventory", label: "Inventory", icon: CartSolid },
+        { id: "payments", label: "Payments", icon: CreditCardSolid },
     ];
 
     const sizingClass = "min-h-[70px] md:p-4 md:min-h-[80px]";

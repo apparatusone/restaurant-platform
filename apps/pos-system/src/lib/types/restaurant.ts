@@ -83,3 +83,12 @@ export interface Ticket {
     items: CheckItem[];
 }
 
+export interface Payment {
+    id: number;
+    check_id: number;
+    amount: number;
+    payment_type: 'cash' | 'credit_card' | 'debit_card';
+    status: 'pending' | 'completed' | 'failed' | 'refunded';
+    card_number?: string | null;
+    payment_date: string;
+}

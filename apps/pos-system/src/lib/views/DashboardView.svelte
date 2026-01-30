@@ -17,6 +17,8 @@
                 return (await import('$lib/components/domain/floor/Floor.svelte')).default;
             case 'kitchen':
                 return (await import('$lib/components/domain/kitchen/Kitchen.svelte')).default;
+            case 'payments':
+                return (await import('$lib/components/domain/payments/PaymentSection.svelte')).default;
             case 'inventory':
                 return (await import('$lib/components/domain/inventory/Inventory.svelte')).default;
             default:
