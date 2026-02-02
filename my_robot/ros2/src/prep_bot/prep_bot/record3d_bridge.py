@@ -52,8 +52,8 @@ class Record3DBridge(Node):
         
         if self.stream.connect(device):
             self.get_logger().info('Connected successfully! Streaming...')
-            # Create a timer to publish frames at 30 Hz from the latest received frame
-            self.timer = self.create_timer(1.0 / 30.0, self.publish_frame)
+            # Create a timer to publish frames at 15 Hz from the latest received frame
+            self.timer = self.create_timer(1.0 / 15.0, self.publish_frame)
         else:
             self.get_logger().error('Failed to connect to device')
 
@@ -70,6 +70,11 @@ class Record3DBridge(Node):
     def publish_frame(self):
         """Publish the latest received frame"""
         if not self._is_running:
+            return
+
+        # Skip if no subscribers
+        if (self.color_pub.get_subscription_count() == 0 and
+            self.camera_info_pub.get_subscription_count() == 0):
             return
         
         try:

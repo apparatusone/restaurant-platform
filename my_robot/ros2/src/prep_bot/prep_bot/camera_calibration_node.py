@@ -58,7 +58,7 @@ class CameraCalibrationNode(Node):
         self.tf_broadcaster = StaticTransformBroadcaster(self)
         
         # Subscribe to tag detections
-        self.create_subscription(
+        self.detection_sub = self.create_subscription(
             AprilTagDetectionArray,
             '/detections',
             self.detection_callback,
@@ -157,6 +157,9 @@ class CameraCalibrationNode(Node):
         self.tf_broadcaster.sendTransform(t)
         
         self.get_logger().info('=== Camera Calibrated ===')
+
+        # Unsubscribe from detections
+        self.destroy_subscription(self.detection_sub)
         self.get_logger().debug(f'Position: ({t_camera_in_base[0]:.4f}, {t_camera_in_base[1]:.4f}, {t_camera_in_base[2]:.4f})')
         self.get_logger().debug(f'Quaternion: ({quat[0]:.4f}, {quat[1]:.4f}, {quat[2]:.4f}, {quat[3]:.4f})')
         self.get_logger().info(f'\n')
@@ -178,7 +181,6 @@ def main(args=None):
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
 
 
 if __name__ == '__main__':
