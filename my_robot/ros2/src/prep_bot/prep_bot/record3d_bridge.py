@@ -182,11 +182,6 @@ def main(args=None):
             node.destroy_node()
         except:
             pass
-        try:
-            if rclpy.ok():
-                rclpy.shutdown()
-        except:
-            pass
 
 if __name__ == '__main__':
     main()
