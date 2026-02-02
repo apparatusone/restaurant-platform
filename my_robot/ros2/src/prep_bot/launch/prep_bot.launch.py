@@ -37,11 +37,12 @@ def generate_launch_description():
         ),
         
         # World to base_link transform
+        # https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Tf2/Writing-A-Tf2-Static-Broadcaster-Cpp.html#the-proper-way-to-publish-static-transforms
         Node(
             package='tf2_ros',
             executable='static_transform_publisher',
             name='world_to_base',
-            arguments=['0', '0', '0', '0', '0', '0', 'world', 'base_link'],
+            arguments=['--x', '0', '--y', '0', '--z', '0', '--roll', '0', '--pitch', '0', '--yaw', '0', '--frame-id', 'world', '--child-frame-id', 'base_link'],
             output='screen'
         ),
         
