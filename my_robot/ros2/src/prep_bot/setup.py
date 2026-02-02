@@ -19,7 +19,12 @@ setup(
         (os.path.join('share', package_name, 'meshes'), glob(os.path.join('meshes', '*.stl'))),
         (os.path.join('share', package_name, 'urdf'), glob(os.path.join('urdf', '*.urdf'))),
     ],
-    install_requires=['setuptools'],
+    install_requires=[
+        'setuptools',
+        'flask',
+        'flask-cors',
+        'record3d',
+    ],
     zip_safe=True,
     maintainer='devin',
     maintainer_email='devin@todo.todo',

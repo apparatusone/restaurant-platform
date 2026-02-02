@@ -14,7 +14,7 @@ hardware_interface:
     port: "/dev/ttySTM32"
     baudrate: 115200
     reconnect_timeout: 1.0
-    status_rate: 20.0
+    status_rate: 2.0
     default_gripper_open: [0.0225, -0.0225]
     default_gripper_closed: [0.0, 0.0]
     gripper_open_angle: 155
