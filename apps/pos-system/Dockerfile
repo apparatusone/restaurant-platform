@@ -14,4 +14,4 @@ EXPOSE 3000
 RUN adduser -D app
 USER app
 
-CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "3000"]
+CMD ["node", "build"]
