@@ -3,6 +3,7 @@ import { authState } from '$lib/stores/auth.svelte';
 export type TimeclockStatus = {
     clocked_in: boolean;
     clock_in_at: string | null;
+    clock_out_at?: string | null;
 };
 
 class TimeclockState {
