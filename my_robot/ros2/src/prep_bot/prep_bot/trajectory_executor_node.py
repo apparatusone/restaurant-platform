@@ -31,14 +31,14 @@ class TrajectoryExecutorNode(Node):
         
         self.callback_group = ReentrantCallbackGroup()
         
-        # Declare parameters (no defaults - must be from config)
-        self.declare_parameter('stm32_buffer_size')
-        self.declare_parameter('command_timeout')
-        self.declare_parameter('trajectory_timeout_margin')
-        self.declare_parameter('waypoint_log_interval')
-        self.declare_parameter('joint_map.linear_joint')
-        self.declare_parameter('joint_map.shoulder_joint')
-        self.declare_parameter('joint_map.elbow_joint')
+        # Declare parameters with defaults
+        self.declare_parameter('stm32_buffer_size', 500)
+        self.declare_parameter('command_timeout', 2.0)
+        self.declare_parameter('trajectory_timeout_margin', 5.0)
+        self.declare_parameter('waypoint_log_interval', 50)
+        self.declare_parameter('joint_map.linear_joint', 0)
+        self.declare_parameter('joint_map.shoulder_joint', 1)
+        self.declare_parameter('joint_map.elbow_joint', 2)
         
         # Validate
         required = [
@@ -284,7 +284,6 @@ def main(args=None):
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
 
 
 if __name__ == '__main__':

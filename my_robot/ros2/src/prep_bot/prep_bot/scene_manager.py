@@ -105,7 +105,7 @@ class SceneManagerNode(Node):
         self.default_cube_size = self.get_parameter('default_cube_size').value
         
         # Publish workspace visualization
-        self.create_timer(1.0, self.publish_markers)
+        self.create_timer(2.0, self.publish_markers)
         
         self.get_logger().info('Scene Manager Ready\n')
     
@@ -295,6 +295,10 @@ class SceneManagerNode(Node):
     
     def publish_markers(self):
         """Publish visualization markers for workspace and move target."""
+        # Skip if no subscribers (RViz not open or not subscribed)
+        if self.marker_pub.get_subscription_count() == 0:
+            return
+
         markers = MarkerArray()
         
         # Workspace cylinder (robot reach envelope)
@@ -425,6 +429,15 @@ class SceneManagerNode(Node):
                 # Skip permanently removed objects
                 if obj_name in self.permanently_removed:
                     continue
+
+                if obj_name in self.detected_objects:
+                    old_pose = self.detected_objects[obj_name]
+                    dx = abs(pose.pose.position.x - old_pose.pose.position.x)
+                    dy = abs(pose.pose.position.y - old_pose.pose.position.y)
+                    dz = abs(pose.pose.position.z - old_pose.pose.position.z)
+                    
+                    if dx < 0.005 and dy < 0.005 and dz < 0.005:
+                        continue  # Skip update, object hasn't moved significantly
                 
                 if obj_name not in self.detected_objects:
                     self.detected_objects[obj_name] = pose
@@ -452,7 +465,6 @@ def main(args=None):
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
 
 
 if __name__ == '__main__':

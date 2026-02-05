@@ -54,7 +54,7 @@ class ApiBridge(Node):
         self._cached_calibrated = False
         
         # Poll status every 2 seconds
-        self.create_timer(2.0, self.update_cached_status)
+        # self.create_timer(2.0, self.update_cached_status)
         
         # Track current robot status
         self.current_status = 'IDLE'
@@ -502,7 +502,6 @@ def main():
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
