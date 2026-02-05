@@ -132,11 +132,27 @@ def send_to_kitchen(db: Session, check_id: int):
     if pending_items:
         try:
             item_ids = [item.id for item in pending_items]
-            redis_client.publish("kitchen.orders", json.dumps({
+            
+            # Resolve ingredients with AprilTags for automation service
+            from sqlalchemy import text
+            results = db.execute(text("""
+                SELECT DISTINCT i.name, i.apriltag_id
+                FROM check_items ci
+                JOIN menu_items mi ON ci.menu_item_id = mi.id
+                JOIN recipes r ON mi.id = r.menu_item_id
+                JOIN ingredients i ON r.ingredient_id = i.id
+                WHERE ci.id IN :item_ids
+                AND i.apriltag_id IS NOT NULL
+            """), {"item_ids": tuple(item_ids)}).fetchall()
+            
+            ingredients = [{"name": row.name, "apriltag_id": row.apriltag_id} for row in results]
+            
+            channel = f"kitchen.orders:{check.restaurant_id}" if check.restaurant_id else "kitchen.orders"
+            redis_client.publish(channel, json.dumps({
                 "check_id": check_id,
-                "item_ids": item_ids
+                "ingredients": ingredients
             }))
-            logger.info(f"Published kitchen order event for check {check_id}")
+            logger.info(f"Published kitchen order event to {channel} for check {check_id} with {len(ingredients)} ingredients")
         except Exception as e:
             logger.warning(f"Failed to publish kitchen order event: {e}")
 
