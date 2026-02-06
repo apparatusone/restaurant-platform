@@ -2,11 +2,11 @@ FROM python:3.13
 
 WORKDIR /app
 
+COPY shared ./shared
 COPY services/api-gateway/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY services/api-gateway/src ./src
-COPY shared ./shared
 
 EXPOSE 8000
 
