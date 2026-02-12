@@ -9,6 +9,7 @@
 > [!WARNING]
 > This project is a proof-of-concept. In its current state this project should **NOT** be used in a production environment.
 
+<img src="assets/readme_img.png" alt="Restaurant POS Screenshot" />
 
 ### Key Features
 
@@ -152,8 +153,6 @@ The system follows a microservices architecture with the following components:
 * **Synchronous**: HTTP/REST via resilient clients (retry + circuit breaker)
 * **Asynchronous**: Redis pub/sub for kitchen events
 * **Robot Bridge**: HTTP to ROS2 topics/services
-
-For detailed architecture documentation, see [architecture.md](architecture.md).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
